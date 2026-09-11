@@ -41,9 +41,9 @@ export async function GET(
       );
     }
 
-    if (labResult[0].collegeId !== session.user.collegeId) {
+    if (session.user.role !== 'admin' && labResult[0].collegeId !== session.user.collegeId) {
       return NextResponse.json(
-        { error: 'Access denied' },
+        { error: 'Access denied: You do not have permission to access laboratories from other institutions' },
         { status: 403 }
       );
     }

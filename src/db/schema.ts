@@ -83,6 +83,7 @@ export const assets = pgTable('assets', {
   manufacturer: varchar('manufacturer', { length: 255 }),
   model: varchar('model', { length: 255 }),
   serialNumber: varchar('serial_number', { length: 255 }),
+  collegeId: integer('college_id').references(() => colleges.id),
   labId: integer('lab_id').references(() => labs.id).notNull(),
   location: varchar('location', { length: 255 }).notNull(), // Specific location within lab
   status: assetStatusEnum('status').notNull().default('available'),

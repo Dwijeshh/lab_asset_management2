@@ -44,6 +44,13 @@ export async function GET(
       );
     }
 
+    if (session.user.role !== 'admin' && asset[0].collegeId && asset[0].collegeId !== session.user.collegeId) {
+      return NextResponse.json(
+        { error: 'Asset not found' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(asset[0]);
   } catch (error) {
     if (error instanceof RateLimitError) {
@@ -88,6 +95,21 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Invalid asset ID' },
         { status: 400 }
+      );
+    }
+
+    const existing = await db.select().from(assets).where(eq(assets.id, assetId)).limit(1);
+    if (existing.length === 0) {
+      return NextResponse.json(
+        { error: 'Asset not found' },
+        { status: 404 }
+      );
+    }
+
+    if (session.user.role !== 'admin' && existing[0].collegeId && existing[0].collegeId !== session.user.collegeId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You cannot modify equipment belonging to another institution' },
+        { status: 403 }
       );
     }
 
@@ -191,6 +213,21 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Invalid asset ID' },
         { status: 400 }
+      );
+    }
+
+    const existing = await db.select().from(assets).where(eq(assets.id, assetId)).limit(1);
+    if (existing.length === 0) {
+      return NextResponse.json(
+        { error: 'Asset not found' },
+        { status: 404 }
+      );
+    }
+
+    if (session.user.role !== 'admin' && existing[0].collegeId && existing[0].collegeId !== session.user.collegeId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You cannot delete equipment belonging to another institution' },
+        { status: 403 }
       );
     }
 

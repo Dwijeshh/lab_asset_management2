@@ -43,10 +43,10 @@ export async function GET(
 
     const lab = labResult[0];
 
-    // Check if lab belongs to user's college
-    if (lab.collegeId !== session.user.collegeId) {
+    // Check if lab belongs to user's college (admin can access any college)
+    if (session.user.role !== 'admin' && lab.collegeId !== session.user.collegeId) {
       return NextResponse.json(
-        { error: 'Access denied' },
+        { error: 'Access denied: You do not have permission to access laboratories from other institutions' },
         { status: 403 }
       );
     }

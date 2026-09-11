@@ -21,25 +21,32 @@ export async function GET(request: NextRequest) {
     rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { searchParams } = new URL(request.url);
-    const collegeId = searchParams.get('collegeId');
+    const collegeIdParam = searchParams.get('collegeId');
 
-    let query = db
-      .select({
-        lab: labs,
-        college: colleges,
-      })
-      .from(labs)
-      .leftJoin(colleges, eq(labs.collegeId, colleges.id))
-      .orderBy(desc(labs.createdAt));
+    let filterCollegeId: number | null = null;
+    if (session.user.role === 'admin') {
+      if (collegeIdParam && collegeIdParam !== 'all') {
+        filterCollegeId = parseInt(collegeIdParam);
+      }
+    } else {
+      // Non-admins are strictly locked to their assigned college
+      filterCollegeId = session.user.collegeId;
+    }
 
-    // Filter by college if specified, or by user's college
-    const filterCollegeId = collegeId ? parseInt(collegeId) : session.user.collegeId;
-    
-    const allLabs = await db
-      .select()
-      .from(labs)
-      .where(eq(labs.collegeId, filterCollegeId))
-      .orderBy(desc(labs.createdAt));
+    let allLabs;
+    if (filterCollegeId !== null) {
+      allLabs = await db
+        .select()
+        .from(labs)
+        .where(eq(labs.collegeId, filterCollegeId))
+        .orderBy(desc(labs.createdAt));
+    } else {
+      // Admin viewing all colleges
+      allLabs = await db
+        .select()
+        .from(labs)
+        .orderBy(desc(labs.createdAt));
+    }
 
     return NextResponse.json({ data: allLabs });
   } catch (error) {
@@ -93,6 +100,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const targetCollegeId = (session.user.role === 'admin' && body.collegeId)
+      ? parseInt(body.collegeId)
+      : session.user.collegeId;
+
     const newLab = await db.insert(labs).values({
       name: body.name,
       code: body.code,
@@ -100,7 +111,7 @@ export async function POST(request: NextRequest) {
       building: body.building || null,
       floor: body.floor || null,
       roomNumber: body.roomNumber || null,
-      collegeId: session.user.collegeId, // Use user's college
+      collegeId: targetCollegeId,
       capacity: body.capacity || null,
       isActive: true,
     }).returning();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { assets } from '@/db/schema';
+import { assets, labs } from '@/db/schema';
 import { desc, ilike, or, eq, and } from 'drizzle-orm';
 import { validateSearchParams, validateAssetInput, ValidationError } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
@@ -42,9 +42,22 @@ export async function GET(request: NextRequest) {
     if (params.status) {
       conditions.push(eq(assets.status, params.status));
     }
-    
+
     if (params.category) {
       conditions.push(eq(assets.category, params.category));
+    }
+    
+    // Multi-institution isolation
+    const collegeIdParam = request.nextUrl.searchParams.get('collegeId');
+
+    if (session.user.role === 'admin') {
+      // Admin can view specific college or all colleges
+      if (collegeIdParam && collegeIdParam !== 'all') {
+        conditions.push(eq(assets.collegeId, parseInt(collegeIdParam)));
+      }
+    } else {
+      // Technicians strictly locked to their assigned college
+      conditions.push(eq(assets.collegeId, session.user.collegeId));
     }
 
     let allAssets;
@@ -110,13 +123,32 @@ export async function POST(request: NextRequest) {
     const validatedData = validateAssetInput(body);
     
     // Use lab from request or user's default lab
-    const labId = body.labId || session.user.labId;
-    if (!labId) {
+    const rawLabId = body.labId || session.user.labId;
+    if (!rawLabId) {
       return NextResponse.json(
         { error: 'Lab ID is required. Please specify a lab or set your default lab.' },
         { status: 400 }
       );
     }
+    const labId = parseInt(rawLabId);
+
+    // Verify lab exists and check institution isolation
+    const targetLab = await db.select().from(labs).where(eq(labs.id, labId)).limit(1);
+    if (targetLab.length === 0) {
+      return NextResponse.json(
+        { error: 'Specified lab does not exist.' },
+        { status: 404 }
+      );
+    }
+
+    if (session.user.role !== 'admin' && targetLab[0].collegeId !== session.user.collegeId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You cannot add equipment to a laboratory outside your assigned institution.' },
+        { status: 403 }
+      );
+    }
+
+    const collegeId = targetLab[0].collegeId;
     
     const newAsset = await db.insert(assets).values({
       name: validatedData.name,
@@ -124,6 +156,7 @@ export async function POST(request: NextRequest) {
       manufacturer: validatedData.manufacturer || null,
       model: validatedData.model || null,
       serialNumber: validatedData.serialNumber || null,
+      collegeId: collegeId,
       labId: labId,
       location: validatedData.location,
       status: validatedData.status,
