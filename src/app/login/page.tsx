@@ -122,15 +122,15 @@ export default function LoginPage() {
             <div className="space-y-2 text-xs">
               <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg">
                 <p className="font-semibold text-purple-700">System Admin:</p>
-                <p className="text-gray-600">admin@mahe.in / admin123</p>
+                <p className="text-gray-600">admin@manipal.edu / password123</p>
               </div>
               <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg">
                 <p className="font-semibold text-blue-700">Main Technician (MIT):</p>
-                <p className="text-gray-600">main.mit@mahe.in / main123</p>
+                <p className="text-gray-600">main.tech@manipal.edu / password123</p>
               </div>
               <div className="bg-green-50 border border-green-100 p-3 rounded-lg">
                 <p className="font-semibold text-green-700">Lab Technician (MIT):</p>
-                <p className="text-gray-600">tech.mit@mahe.in / tech123</p>
+                <p className="text-gray-600">tech1@manipal.edu / password123</p>
               </div>
             </div>
           </div>
