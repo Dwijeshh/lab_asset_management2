@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: lab-asset-management
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lab-asset-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+        
+databases:
+  - name: lab-asset-db
+    databaseName: lab_assets
+    user: lab_admin
+    region: oregon
+    plan: free

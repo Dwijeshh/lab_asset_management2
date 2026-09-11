@@ -1,0 +1,115 @@
+'use client';
+
+import { useState } from 'react';
+
+const categories = [
+  { value: '', label: 'All Categories' },
+  // Computing & IT Equipment
+  { value: 'cpu', label: 'CPU / Desktop' },
+  { value: 'monitor', label: 'Monitor' },
+  { value: 'laptop', label: 'Laptop' },
+  { value: 'printer', label: 'Printer' },
+  { value: 'projector', label: 'Projector' },
+  { value: 'server', label: 'Server' },
+  { value: 'network_device', label: 'Network Device (Switch / Router)' },
+  { value: 'ups', label: 'UPS' },
+  { value: 'keyboard_mouse', label: 'Keyboard / Mouse' },
+  // Electrical & Electronics Equipment
+  { value: 'oscilloscope', label: 'Oscilloscope (CRO / DSO)' },
+  { value: 'function_generator', label: 'Function / Signal Generator' },
+  { value: 'power_supply', label: 'DC Power Supply' },
+  { value: 'multimeter', label: 'Digital Multimeter' },
+  { value: 'soldering_station', label: 'Soldering Station' },
+  { value: 'microcontroller_kit', label: 'Microcontroller / Dev Board Kit' },
+  // Mechanical & Workshop Equipment
+  { value: 'three_d_printer', label: '3D Printer' },
+  { value: 'lathe_machine', label: 'Lathe Machine' },
+  { value: 'milling_machine', label: 'Milling / Drilling Machine' },
+  { value: 'testing_machine', label: 'Material Testing Machine (UTM)' },
+  // General
+  { value: 'other', label: 'Other Engineering Asset' },
+];
+
+const statuses = [
+  { value: '', label: 'All Statuses' },
+  { value: 'available', label: 'Available' },
+  { value: 'in_use', label: 'In Use' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'retired', label: 'Retired' },
+];
+
+interface SearchBarProps {
+  onSearch: (search: string, status: string, category: string) => void;
+}
+
+export default function SearchBar({ onSearch }: SearchBarProps) {
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [category, setCategory] = useState('');
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    onSearch(value, status, category);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatus(value);
+    onSearch(search, value, category);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value);
+    onSearch(search, status, value);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-3 items-center">
+      <div className="relative flex-1 min-w-[200px]">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="Search assets..."
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <svg
+          className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+
+      <select
+        value={status}
+        onChange={(e) => handleStatusChange(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        {statuses.map(s => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={category}
+        onChange={(e) => handleCategoryChange(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        {categories.map(c => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
