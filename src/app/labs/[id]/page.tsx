@@ -317,8 +317,10 @@ export default function LabDashboardPage() {
         ) : (
           <AssetList 
             assets={assets} 
+            currentUser={user}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onRequest={() => {}}
             canDelete={canDeleteAssets}
           />
         )}

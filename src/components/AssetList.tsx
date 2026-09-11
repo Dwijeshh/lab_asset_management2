@@ -62,12 +62,14 @@ const categoryLabels: Record<string, string> = {
 
 interface AssetListProps {
   assets: any[];
+  currentUser: any;
   onEdit: (asset: any) => void;
   onDelete: (id: number) => void;
+  onRequest: (asset: any) => void;
   canDelete: boolean;
 }
 
-export default function AssetList({ assets, onEdit, onDelete, canDelete }: AssetListProps) {
+export default function AssetList({ assets, currentUser, onEdit, onDelete, onRequest, canDelete }: AssetListProps) {
   if (assets.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
@@ -138,12 +140,22 @@ export default function AssetList({ assets, onEdit, onDelete, canDelete }: Asset
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => onEdit(asset)}
-                      className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    >
-                      Edit
-                    </button>
+                    {asset.status === 'available' && currentUser?.labId && asset.labId !== currentUser.labId && (
+                      <button
+                        onClick={() => onRequest(asset)}
+                        className="px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded transition-colors"
+                      >
+                        Request
+                      </button>
+                    )}
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'main_technician' || asset.labId === currentUser?.labId) && (
+                      <button
+                        onClick={() => onEdit(asset)}
+                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
                     {canDelete && (
                       <button
                         onClick={() => onDelete(asset.id)}

@@ -38,7 +38,7 @@ export default function CollegeSelector({
         <div>
           <span className="text-xs text-slate-500 font-medium block leading-none">Institution</span>
           <span className="font-semibold text-slate-800">
-            {userCollege ? `${userCollege.name} (${userCollege.code})` : 'Assigned Institution'}
+            {userCollege ? userCollege.name : 'Assigned Institution'}
           </span>
         </div>
         <span className="ml-1 text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono">
@@ -64,7 +64,7 @@ export default function CollegeSelector({
         <option value="all">🌐 All MAHE Institutions (Network Overview)</option>
         {colleges.map((col) => (
           <option key={col.id} value={col.id.toString()}>
-            🏛️ {col.name} ({col.code})
+            🏛️ {col.name}
           </option>
         ))}
       </select>

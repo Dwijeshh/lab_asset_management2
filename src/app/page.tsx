@@ -8,6 +8,10 @@ import SearchBar from '@/components/SearchBar';
 import StatsCards from '@/components/StatsCards';
 import LabManagement from '@/components/LabManagement';
 import CollegeSelector, { College } from '@/components/CollegeSelector';
+import NotificationBell from '@/components/NotificationBell';
+import BorrowRequestModal from '@/components/BorrowRequestModal';
+import PendingRequestsPanel from '@/components/PendingRequestsPanel';
+import ActiveLoansPanel from '@/components/ActiveLoansPanel';
 
 interface User {
   id: number;
@@ -30,6 +34,9 @@ export default function HomePage() {
   const [showForm, setShowForm] = useState(false);
   const [showLabManagement, setShowLabManagement] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'assets' | 'requests' | 'loans'>('assets');
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestingAsset, setRequestingAsset] = useState<any>(null);
 
   const fetchUser = async () => {
     try {
@@ -259,7 +266,8 @@ export default function HomePage() {
             />
 
             <div className="flex items-center gap-3 border-l pl-3 border-gray-200">
-              <div className="text-right">
+              <NotificationBell />
+              <div className="text-right ml-2">
                 <span className="text-sm font-semibold text-gray-800 block">{user.name}</span>
                 <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${roleColors[user.role]}`}>
                   {roleLabels[user.role]}
@@ -301,50 +309,119 @@ export default function HomePage() {
         {/* Stats Cards */}
         <StatsCards assets={assets} />
 
-        {/* Action Bar */}
-        <div className="mb-6 flex flex-wrap gap-3 justify-between items-center mt-6">
-          <SearchBar onSearch={handleSearch} />
-          <div className="flex gap-2">
-            {(user.role === 'admin' || user.role === 'main_technician') && (
-              <button
-                onClick={() => router.push('/labs')}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
-              >
-                <span className="text-xl">🏢</span>
-                View Labs
-              </button>
-            )}
-            {canCreateLabs && (
-              <button
-                onClick={() => setShowLabManagement(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
-              >
-                <span className="text-xl">➕</span>
-                Create Lab
-              </button>
-            )}
+        {/* Tabs */}
+        <div className="mt-8 mb-4 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
+              onClick={() => setActiveTab('assets')}
+              className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'assets'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
             >
-              <span className="text-xl">+</span>
-              Add Asset
+              Assets Inventory
             </button>
-          </div>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'requests'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Borrow Requests
+            </button>
+            <button
+              onClick={() => setActiveTab('loans')}
+              className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'loans'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Active Loans
+            </button>
+          </nav>
         </div>
 
-        {/* Asset List */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading assets...</p>
-          </div>
-        ) : (
-          <AssetList 
-            assets={filteredAssets} 
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            canDelete={canDeleteAssets || false}
+        {activeTab === 'assets' && (
+          <>
+            {/* Action Bar */}
+            <div className="mb-6 flex flex-wrap gap-3 justify-between items-center mt-2">
+              <SearchBar onSearch={handleSearch} />
+              <div className="flex gap-2">
+                {(user.role === 'admin' || user.role === 'main_technician') && (
+                  <button
+                    onClick={() => router.push('/labs')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
+                  >
+                    <span className="text-xl">🏢</span>
+                    View Labs
+                  </button>
+                )}
+                {canCreateLabs && (
+                  <button
+                    onClick={() => setShowLabManagement(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
+                  >
+                    <span className="text-xl">➕</span>
+                    Create Lab
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
+                >
+                  <span className="text-xl">+</span>
+                  Add Asset
+                </button>
+              </div>
+            </div>
+
+            {/* Asset List */}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
+                <p className="mt-4 text-gray-600">Loading assets...</p>
+              </div>
+            ) : (
+              <AssetList
+                assets={filteredAssets}
+                currentUser={user}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onRequest={(asset) => {
+                  setRequestingAsset(asset);
+                  setShowRequestModal(true);
+                }}
+                canDelete={canDeleteAssets || false}
+              />
+            )}
+          </>
+        )}
+
+        {activeTab === 'requests' && (
+          <PendingRequestsPanel userRole={user.role} />
+        )}
+
+        {activeTab === 'loans' && (
+          <ActiveLoansPanel userRole={user.role} />
+        )}
+
+        {/* Borrow Request Modal */}
+        {showRequestModal && requestingAsset && (
+          <BorrowRequestModal
+            asset={requestingAsset}
+            onClose={() => {
+              setShowRequestModal(false);
+              setRequestingAsset(null);
+            }}
+            onSuccess={() => {
+              setShowRequestModal(false);
+              setRequestingAsset(null);
+              setActiveTab('requests');
+            }}
           />
         )}
 
