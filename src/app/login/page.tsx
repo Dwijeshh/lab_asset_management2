@@ -65,7 +65,7 @@ export default function LoginPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-1">
               Lab Asset Manager
             </h1>
-            <p className="text-gray-600 font-medium">MAHE Engineering Colleges</p>
+            <p className="text-gray-600 font-medium">Manipal Academy of Higher Education (MAHE)</p>
           </div>
 
           {/* Error Message */}
