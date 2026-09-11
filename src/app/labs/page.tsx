@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LabManagement from '@/components/LabManagement';
 import CollegeSelector, { College } from '@/components/CollegeSelector';
+import NotificationBell from '@/components/NotificationBell';
 
 interface User {
   id: number;
@@ -185,7 +186,8 @@ export default function LabsPage() {
             />
 
             <div className="flex items-center gap-3 border-l pl-3 border-gray-200">
-              <div className="text-right">
+              <NotificationBell />
+              <div className="text-right ml-2">
                 <span className="text-sm font-semibold text-gray-800 block">{user.name}</span>
                 <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${roleColors[user.role]}`}>
                   {roleLabels[user.role]}
