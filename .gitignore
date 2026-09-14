@@ -39,3 +39,6 @@ yarn-error.log*
 
 # temporary test files
 cookies.txt
+
+# Dev server logs
+/dev-server.log

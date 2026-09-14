@@ -62,7 +62,9 @@ export const labs = pgTable('labs', {
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  passwordHash: varchar('password_hash', { length: 255 }), // null for SSO-provisioned accounts
+  keycloakSub: varchar('keycloak_sub', { length: 255 }).unique(), // Keycloak subject id (SSO link)
+  sessionVersion: integer('session_version').notNull().default(0), // bumped to revoke all sessions
   name: varchar('name', { length: 255 }).notNull(),
   role: userRoleEnum('role').notNull().default('technician'),
   collegeId: integer('college_id').references(() => colleges.id).notNull(),

@@ -5,10 +5,51 @@ import { eq } from 'drizzle-orm';
 import { verifyPassword, createSessionToken, setSessionCookie } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { logger, sanitizeError } from '@/lib/logger';
+import {
+  isKeycloakEnabled,
+  buildAuthorizeUrl,
+  generateOAuthState,
+  generateCodeVerifier,
+  codeChallenge,
+} from '@/lib/keycloak';
+
+// GET /api/auth/login
+//
+// With AUTH_PROVIDER=keycloak this starts the SSO flow by redirecting to
+// Keycloak (PKCE + state/nonce cookies). With the local provider it returns
+// a marker so the login page knows to render the password form.
+export async function GET(request: NextRequest) {
+  if (!isKeycloakEnabled()) {
+    return NextResponse.json({ provider: 'local' });
+  }
+
+  const state = generateOAuthState();
+  const verifier = generateCodeVerifier();
+  const response = NextResponse.redirect(
+    buildAuthorizeUrl(request.url, state, codeChallenge(verifier))
+  );
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 600, // 10 minutes
+    secure: process.env.NODE_ENV === 'production',
+  };
+  response.cookies.set('oauth_state', state, cookieOptions);
+  response.cookies.set('oauth_verifier', verifier, cookieOptions);
+  return response;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting - strict for login
+    if (isKeycloakEnabled()) {
+      return NextResponse.json(
+        { error: 'This system uses single sign-on. Please sign in with SSO.' },
+        { status: 400 }
+      );
+    }
+
+    // Rate limiting - strict for login (per IP, then per account below)
     const clientId = getClientIdentifier(request);
     rateLimit(`auth:login:${clientId}`, { windowMs: 60000, maxRequests: 5 });
 
@@ -21,6 +62,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Per-account throttle: slows credential stuffing against a known email
+    // even when the attacker rotates IPs.
+    rateLimit(`auth:login:email:${email.toLowerCase()}`, {
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 5,
+    });
 
     // Find user
     const userResult = await db
@@ -44,6 +92,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Account is disabled' },
         { status: 403 }
+      );
+    }
+
+    // SSO-linked accounts have no local password
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: 'This account uses single sign-on. Please sign in with SSO.' },
+        { status: 401 }
       );
     }
 
@@ -73,6 +129,7 @@ export async function POST(request: NextRequest) {
       role: user.role,
       collegeId: user.collegeId,
       labId: user.labId,
+      sessionVersion: user.sessionVersion,
     });
 
     // Set cookie

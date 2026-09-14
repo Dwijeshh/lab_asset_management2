@@ -65,6 +65,34 @@ export function sanitizeString(input: string, maxLength: number = 255): string {
   return input.trim().slice(0, maxLength);
 }
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Validates an email and returns the trimmed, lower-cased form.
+export function validateEmail(input: string): string {
+  if (!input || typeof input !== 'string') {
+    throw new ValidationError('Email is required');
+  }
+  const email = input.trim().toLowerCase();
+  if (email.length > 255 || !EMAIL_PATTERN.test(email)) {
+    throw new ValidationError('Invalid email address');
+  }
+  return email;
+}
+
+// Password policy: at least 8 characters with a letter and a digit.
+export function validatePassword(input: string): string {
+  if (!input || typeof input !== 'string') {
+    throw new ValidationError('Password is required');
+  }
+  if (input.length < 8) {
+    throw new ValidationError('Password must be at least 8 characters long');
+  }
+  if (!/[A-Za-z]/.test(input) || !/\d/.test(input)) {
+    throw new ValidationError('Password must contain at least one letter and one number');
+  }
+  return input;
+}
+
 export function validateAssetInput(body: any): ValidatedAssetInput {
   // Required fields
   if (!body.name || typeof body.name !== 'string') {

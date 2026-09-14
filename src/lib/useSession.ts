@@ -72,7 +72,13 @@ export function useSession(): SessionUser | null {
 
 export async function logout(router: ReturnType<typeof useRouter>): Promise<void> {
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    const response = await fetch('/api/auth/logout', { method: 'POST' });
+    const data = await response.json();
+    if (data.logoutUrl) {
+      // SSO: end the Keycloak session, which redirects back to /login.
+      window.location.href = data.logoutUrl;
+      return;
+    }
     router.push('/login');
   } catch (error) {
     console.error('Error logging out:', error);

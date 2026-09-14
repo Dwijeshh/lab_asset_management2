@@ -2,6 +2,40 @@
 
 All notable changes to the Lab Asset Management System.
 
+## [2.2.0] - 2026 - SSO, User Management & Session Control
+
+### 🔐 Single Sign-On (Keycloak OIDC)
+
+- Full OIDC authorization-code flow with PKCE: `/login` redirects to
+  Keycloak, `/api/auth/callback` validates state/nonce, exchanges the code,
+  and verifies the ID token via JWKS (issuer + audience + nonce).
+- Enabled with `AUTH_PROVIDER=keycloak` + `KEYCLOAK_URL` (realm),
+  `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`; the local password provider
+  remains the default for development.
+- Keycloak authenticates; local accounts stay authoritative for role,
+  college, lab and active state (admin pre-provisions, SSO login links the
+  subject id). SSO-linked accounts have no local password.
+- Logout returns the Keycloak end-session URL so the SSO session ends too.
+
+### 👥 Admin User Management
+
+- New admin-only APIs: `GET/POST /api/users`, `PUT /api/users/[id]`,
+  `PUT /api/users/[id]/password` — create accounts, assign role/college/lab,
+  enable/disable, reset passwords (with email/password validation and audit
+  log entries).
+- New admin **Users** page with create/edit/reset-password/disable actions.
+- Self-service `POST /api/auth/change-password` (verifies current password,
+  enforces the password policy).
+
+### 🛡️ Session Control
+
+- `users.sessionVersion` + DB-backed `getSession`: disabling an account,
+  changing a role/college, or resetting a password now takes effect
+  immediately — existing sessions are revoked instead of living until token
+  expiry.
+- Per-account login throttling (5 attempts / 15 min) on top of the per-IP
+  limit.
+
 ## [2.1.0] - 2026 - Security Hardening, Borrowing Lifecycle & Cleanup
 
 ### 🔒 Security Fixes

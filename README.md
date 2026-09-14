@@ -90,9 +90,18 @@ The system also tracks `colleges`, `labs`, `users`, `asset_requests`, `asset_loa
 All endpoints require session authentication (JWT cookie from `/api/auth/login`).
 
 ### Auth
-- `POST /api/auth/login` - Log in, sets session cookie
-- `POST /api/auth/logout` - Log out
+- `GET /api/auth/login` - SSO entry point (redirects to Keycloak when `AUTH_PROVIDER=keycloak`, otherwise reports `{ provider: 'local' }`)
+- `POST /api/auth/login` - Local username/password login (disabled under SSO)
+- `GET /api/auth/callback` - OIDC callback (Keycloak redirect target)
+- `POST /api/auth/logout` - Log out (returns a `logoutUrl` under SSO to end the Keycloak session)
 - `GET /api/auth/me` - Current user
+- `POST /api/auth/change-password` - Change own password (verifies current password, revokes all sessions)
+
+### User Management (admin only)
+- `GET /api/users` - List users with college/lab names
+- `POST /api/users` - Create user (name, email, role, college, lab, password)
+- `PUT /api/users/[id]` - Update role / college / lab / active state
+- `PUT /api/users/[id]/password` - Reset a user's password (revokes their sessions)
 
 ### Assets
 - `GET /api/assets` - List (query: `search`, `status`, `category`, `collegeId`, `page`, `limit`)
@@ -213,6 +222,16 @@ npm start
 # Push database schema
 npx drizzle-kit push
 ```
+
+## 🔐 Single Sign-On (Keycloak)
+
+Set `AUTH_PROVIDER=keycloak` with `KEYCLOAK_URL` (realm URL), `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET` to enable OIDC SSO. The flow uses authorization code + PKCE:
+
+1. `/login` redirects to Keycloak
+2. Keycloak redirects back to `/api/auth/callback`, which validates the state/nonce, exchanges the code, and verifies the ID token signature via JWKS
+3. The Keycloak subject is linked to a locally provisioned account (created by an admin under **User Management**); the app issues its own session cookie
+
+Accounts are pre-provisioned locally (role, college, lab, active state stay under admin control); Keycloak only authenticates. SSO-linked users have no local password — password management for them lives in the identity provider.
 
 ## 🔐 Security & Roles
 

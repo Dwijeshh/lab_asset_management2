@@ -7,6 +7,12 @@ import type { College } from '@/lib/useSession';
 import { logout, ROLE_COLORS, ROLE_LABELS } from '@/lib/useSession';
 import type { Role } from '@/lib/assets';
 
+const ADMIN_NAV = [
+  { label: 'Dashboard', href: '/' },
+  { label: 'Labs', href: '/labs' },
+  { label: 'Users', href: '/users' },
+];
+
 interface AppHeaderProps {
   user: {
     name: string;
@@ -58,6 +64,21 @@ export default function AppHeader({
             {title}
           </h1>
           <p className="mt-0.5 text-gray-600 font-medium text-sm">{subtitle}</p>
+          {user.role === 'admin' && (
+            <nav className="mt-2 flex gap-1.5">
+              {ADMIN_NAV.map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                    item.href === '/users' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
       </div>
 
