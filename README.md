@@ -327,7 +327,7 @@ This application includes production-ready security features:
 **This application is NOT production-ready by default.** See [SECURITY.md](./SECURITY.md) for:
 - Complete security vulnerability assessment
 - Production hardening checklist
-- Required configuration changes (JWT_SECRET, HTTPS, Redis rate limiting)
+- Required configuration changes (JWT_SECRET, HTTPS, `TRUST_PROXY` behind a proxy)
 
 **See [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) for deployment guide.**
 

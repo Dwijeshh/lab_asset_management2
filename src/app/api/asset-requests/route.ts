@@ -5,6 +5,7 @@ import { eq, and, desc, or } from 'drizzle-orm';
 import { getSession } from '@/lib/auth-jwt';
 import { logger, sanitizeError } from '@/lib/logger';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 
 export async function GET(request: Request) {
   try {
@@ -95,6 +96,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -102,7 +115,7 @@ export async function POST(request: Request) {
 
     // Rate limiting - stricter for writes
     const clientId = getClientIdentifier(request);
-    rateLimit(`requests:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`requests:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const user = session.user;
     if (!user.labId) {

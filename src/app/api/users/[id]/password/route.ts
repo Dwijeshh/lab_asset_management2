@@ -4,6 +4,7 @@ import { users, auditLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getSession, hashPassword } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import { validatePassword, ValidationError } from '@/lib/validation';
 
@@ -15,6 +16,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +37,7 @@ export async function PUT(
     }
 
     const clientId = getClientIdentifier(request);
-    rateLimit(`users:password:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`users:password:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const { id } = await params;
     const userId = parseInt(id, 10);

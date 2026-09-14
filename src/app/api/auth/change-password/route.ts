@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getSession, hashPassword, verifyPassword } from '@/lib/auth-jwt';
 import { validatePassword, ValidationError } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 
 // POST /api/auth/change-password — authenticated user changes their own
@@ -12,13 +13,25 @@ import { logger, sanitizeError } from '@/lib/logger';
 // session (see getSession), so the user must sign in again.
 export async function POST(request: NextRequest) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const clientId = getClientIdentifier(request);
-    rateLimit(`change-password:${clientId}`, { windowMs: 60000, maxRequests: 5 });
+    await rateLimit(`change-password:${clientId}`, { windowMs: 60000, maxRequests: 5 });
 
     const body = await request.json();
     const { currentPassword, newPassword } = body;

@@ -4,7 +4,7 @@ import { assets, labs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { validateAssetInput, ValidationError } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
-import { validateApiKey, UnauthorizedError } from '@/lib/auth';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import { getSession, canDeleteAssets, canAccessCollege } from '@/lib/auth-jwt';
 
@@ -23,7 +23,7 @@ export async function GET(
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`assets:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`assets:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { id } = await params;
     const assetId = parseInt(id, 10);
@@ -76,6 +76,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -86,7 +98,7 @@ export async function PUT(
 
     // Rate limiting - stricter for writes
     const clientId = getClientIdentifier(request);
-    rateLimit(`assets:put:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`assets:put:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const { id } = await params;
     const assetId = parseInt(id, 10);
@@ -177,12 +189,6 @@ export async function PUT(
 
     return NextResponse.json(updatedAsset[0]);
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     if (error instanceof RateLimitError) {
       return NextResponse.json(
@@ -214,6 +220,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -232,7 +250,7 @@ export async function DELETE(
 
     // Rate limiting - stricter for deletes
     const clientId = getClientIdentifier(request);
-    rateLimit(`assets:delete:${clientId}`, { windowMs: 60000, maxRequests: 10 });
+    await rateLimit(`assets:delete:${clientId}`, { windowMs: 60000, maxRequests: 10 });
 
     const { id } = await params;
     const assetId = parseInt(id, 10);
@@ -273,12 +291,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Asset deleted successfully' });
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     if (error instanceof RateLimitError) {
       return NextResponse.json(

@@ -21,7 +21,7 @@ export async function GET(
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { id } = await params;
     const labId = parseInt(id, 10);

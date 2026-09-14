@@ -80,13 +80,15 @@
 └──────────────────────────────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Layer 3: Rate Limiting                                       │
+│ Layer 3: Rate Limiting & Body Size                           │
 │  ✅ Fully implemented                                        │
 │  • GET: 60 requests/minute per IP                           │
 │  • POST/PUT: 20 requests/minute per IP                      │
 │  • DELETE: 10 requests/minute per IP                        │
+│  • Login: 5/15min per account on top of per-IP limits       │
 │  • Returns 429 with Retry-After header                      │
-│  ⚠️ In-memory (upgrade to Redis for multi-instance)         │
+│  • Redis store when REDIS_URL is set, memory otherwise      │
+│  • API bodies capped (413 over MAX_REQUEST_SIZE, 1mb)       │
 └─────────────────────────────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -170,7 +172,10 @@
 - JWT session authentication (HTTP-only cookies, bcrypt passwords)
 - Multi-tenant college isolation (single policy owner in auth-jwt.ts)
 - Input validation & sanitization
-- Rate limiting (per-route, in-memory)
+- Rate limiting (per-route; Redis when REDIS_URL is set)
+- CSRF protection (same-origin validation on all state-changing routes)
+- Security headers (CSP, HSTS, X-Frame-Options, nosniff)
+- Request body size limit (middleware)
 - SQL injection protection
 - XSS protection
 - Error sanitization (no internal errors reach clients)
@@ -184,10 +189,8 @@
 
 ### ❌ Not Configured (Requires Setup)
 - HTTPS/SSL (platform-dependent)
-- Security headers (CSP, HSTS, etc.)
-- CORS policy
-- CSRF protection
-- Redis-backed rate limiting
+- CORS policy (only if the API is consumed cross-origin)
+- Redis store (set REDIS_URL for multi-instance)
 
 ## Deployment Models
 
@@ -204,6 +207,7 @@
 ```
 ✅ HTTPS with self-signed cert
 ✅ JWT session authentication (built in)
+✅ CSRF protection + security headers (built in)
 ✅ Behind firewall
 ✅ All security features active
 ⚠️ Single server instance
@@ -213,9 +217,8 @@
 ```
 ✅ HTTPS with valid certificate
 ✅ JWT session authentication (built in)
-⚠️ Redis-backed rate limiting (add for multi-instance)
-⚠️ Security headers (add in next.config.ts)
-⚠️ CORS configured (ALLOWED_ORIGINS)
+⚠️ Redis-backed rate limiting (set REDIS_URL for multi-instance)
+⚠️ CORS configured (ALLOWED_ORIGINS, cross-origin consumers only)
 ✅ Audit logging
 ✅ Monitoring & alerting
 ✅ Multi-instance deployment
@@ -241,7 +244,9 @@
 - **Migrations**: Committed Drizzle Kit migrations (idempotent baseline)
 
 ### Security
-- **Rate Limiting**: In-memory (upgradable to Redis)
+- **Rate Limiting**: Redis store (`REDIS_URL`) with in-memory fallback
+- **CSRF**: Same-origin validation (`src/lib/csrf.ts`) on mutating routes
+- **Headers**: CSP/HSTS/frame protection in `next.config.ts`
 - **Input Validation**: Custom validators
 - **SQL Protection**: Drizzle ORM parameterization
 - **Error Handling**: Custom error classes
@@ -281,9 +286,11 @@ src/
 ├── db/
 │   ├── index.ts                  (DB connection)
 │   └── schema.ts                 (Database schema)
+├── middleware.ts                 (API body size limit → 413)
 └── lib/
     ├── validation.ts             (Input validation ✅)
-    ├── rateLimit.ts              (Rate limiting ✅)
+    ├── rateLimit.ts              (Rate limiting: Redis/memory ✅)
+    ├── csrf.ts                   (Same-origin CSRF guard ✅)
     ├── auth-jwt.ts               (JWT sessions + college scoping ✅)
     ├── keycloak.ts               (Keycloak OIDC client ✅)
     ├── assets.ts                 (Shared category/status metadata ✅)

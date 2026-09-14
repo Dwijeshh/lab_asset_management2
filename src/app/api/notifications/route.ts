@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`notifications:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`notifications:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get('unread') === 'true';

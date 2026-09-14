@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`colleges:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`colleges:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const user = session.user;
 

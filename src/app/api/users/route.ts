@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth-jwt';
 import { hashPassword } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import { validateEmail, validatePassword, ValidationError } from '@/lib/validation';
 import { isKeycloakEnabled } from '@/lib/keycloak';
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     const clientId = getClientIdentifier(request);
-    rateLimit(`users:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`users:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const rows = await db
       .select({
@@ -63,6 +64,18 @@ export async function GET(request: NextRequest) {
 // POST /api/users — create a user (admin only).
 export async function POST(request: NextRequest) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -72,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const clientId = getClientIdentifier(request);
-    rateLimit(`users:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`users:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const body = await request.json();
     const { name, role, collegeId, labId, password } = body;

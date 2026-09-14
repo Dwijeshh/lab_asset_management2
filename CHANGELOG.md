@@ -29,6 +29,23 @@ All notable changes to the Lab Asset Management System.
 - Rollback procedure documented in README and DEPLOYMENT.md (backup restore; hot-fixes
   via a corrective migration — never hand-edit an applied migration).
 
+### 🛡️ Security Hardening
+
+- **Redis-backed rate limiting** (`REDIS_URL`): shared per-IP/per-account state across
+  replicas, with automatic in-memory fallback if Redis is unreachable.
+- **Spoof-proof client identification**: `X-Forwarded-For` is trusted only when
+  `TRUST_PROXY=true`; otherwise direct clients share one bucket so a forged header
+  cannot escape throttling.
+- **Security headers** on every response (`next.config.ts`): Content-Security-Policy,
+  HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`,
+  `Permissions-Policy`.
+- **CSRF protection** (`src/lib/csrf.ts`): all 14 state-changing routes reject
+  cross-origin requests via Origin/Referer validation.
+- **Request body size limit**: API bodies over `MAX_REQUEST_SIZE` (default 1mb) are
+  rejected with 413 in middleware; Server Action bodies capped in `next.config.ts`.
+- Removed the dead API-key auth module (`src/lib/auth.ts`); JWT sessions are the only
+  authentication path.
+
 ## [2.2.0] - 2026 - SSO, User Management & Session Control
 
 ### 🔐 Single Sign-On (Keycloak OIDC)

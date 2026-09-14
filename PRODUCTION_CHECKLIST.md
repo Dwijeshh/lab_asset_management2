@@ -75,34 +75,20 @@ const nextConfig = {
 };
 ```
 
-#### 3. Upgrade Rate Limiting to Redis (multi-instance only)
+#### 3. Rate Limiting: Redis + Proxy Mode
 
-The built-in rate limiter (`src/lib/rateLimit.ts`) is in-memory: correct for a single
-instance, but it resets on restart and does not share state across replicas. If you
-deploy more than one instance, back it with Redis (`ioredis` is already a dependency):
+The built-in limiter (`src/lib/rateLimit.ts`) uses the in-memory store by default —
+correct for a single instance, but it resets on restart and is not shared across
+replicas:
 
-```typescript
-// src/lib/rateLimit.ts — swap the Map store for Redis INCR/EXPIRE
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-
-export async function rateLimit(key: string, limit: number, window: number) {
-  const current = await redis.incr(key);
-
-  if (current === 1) {
-    await redis.expire(key, window);
-  }
-
-  if (current > limit) {
-    const ttl = await redis.ttl(key);
-    throw new RateLimitError(ttl);
-  }
-}
-```
-
-Set `REDIS_URL` when enabled. Single-instance deployments (Vercel, one container) can
-ship with the in-memory store.
+- **Multi-instance deployments**: set `REDIS_URL` — the limiter switches to Redis
+  (INCR/EXPIRE) with no code changes, and falls back to memory if Redis is unreachable.
+- **Behind a proxy** (Vercel, nginx, load balancer): set `TRUST_PROXY=true` so per-IP
+  limits use the real client IP from `X-Forwarded-For`. If the app is directly
+  reachable, leave it unset — the header is client-controlled and would let an
+  attacker rotate IPs to escape throttling.
+- **Body size**: API bodies over `MAX_REQUEST_SIZE` (default 1mb) are rejected with
+  413 in `src/middleware.ts`.
 
 #### 4. Authentication Provider (Optional SSO)
 
@@ -132,10 +118,16 @@ remain controlled in this app, not in Keycloak.
 
 #### Redis (for rate limiting — multi-instance deployments only)
 - [ ] Redis 6+ installed
+- [ ] `REDIS_URL` set on every app instance
 - [ ] Password authentication enabled
 - [ ] Persistence configured (AOF or RDB)
 - [ ] SSL/TLS enabled
 - [ ] Firewall configured
+
+#### Reverse proxy (if applicable)
+- [ ] `TRUST_PROXY=true` set on the app
+- [ ] Proxy overwrites `X-Forwarded-For` (Vercel and nginx do by default)
+- [ ] Proxy enforces HTTPS and forwards `X-Forwarded-Proto`
 
 #### Application Server
 - [ ] Node.js 18+ installed
@@ -407,8 +399,9 @@ psql -U user -d dbname < backup_YYYYMMDD_HHMMSS.sql
 - [ ] `JWT_SECRET` is a strong random value
 - [ ] HTTPS configured and tested
 - [ ] Database backups automated
-- [ ] Redis configured for rate limiting
-- [ ] Security headers configured
+- [ ] `REDIS_URL` set if multi-instance; `TRUST_PROXY=true` if behind a proxy
+- [ ] Security headers verified with `curl -I` (CSP, HSTS, X-Frame-Options,
+      X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
 - [ ] Error tracking setup (Sentry)
 - [ ] Monitoring configured
 - [ ] Log aggregation setup

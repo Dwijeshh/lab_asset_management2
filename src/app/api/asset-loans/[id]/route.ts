@@ -5,8 +5,21 @@ import { eq } from 'drizzle-orm';
 import { getSession, canAccessCollege } from '@/lib/auth-jwt';
 import { logger, sanitizeError } from '@/lib/logger';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
   try {
     const session = await getSession();
     if (!session) {
@@ -20,7 +33,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     // Rate limiting - stricter for write actions
     const clientId = getClientIdentifier(request);
-    rateLimit(`loans:put:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`loans:put:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const { id } = await params;
     const loanId = parseInt(id);

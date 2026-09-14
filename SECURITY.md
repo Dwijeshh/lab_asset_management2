@@ -15,6 +15,11 @@
 - **DELETE requests**: 10 requests/minute per IP
 - **Login**: per-account throttle (5 attempts / 15 minutes) on top of the per-IP limit
 - Returns `429 Too Many Requests` with `Retry-After` header
+- **Store**: Redis when `REDIS_URL` is set (shared across instances), in-memory
+  otherwise; the limiter degrades to memory if Redis is unreachable
+- **Spoof-proofing**: `X-Forwarded-For` is honored only when `TRUST_PROXY=true`
+  (behind a proxy that overwrites it); otherwise all direct clients share one
+  bucket, so a spoofed IP can never escape throttling
 
 ### 3. Authentication & Authorization
 - **JWT session authentication** (jose) stored in HTTP-only cookies
@@ -69,7 +74,7 @@
    - Enable HSTS headers
    - Force HTTPS redirects
 
-4. **Configure CORS**
+4. **Configure CORS** (only if the API is consumed cross-origin)
    ```typescript
    // next.config.ts
    headers: async () => [{
@@ -80,10 +85,10 @@
    }],
    ```
 
-5. **Add CSRF Protection**
-   - Implement CSRF tokens for state-changing operations
-   - Use SameSite cookies
-   - Consider using Next.js middleware
+5. **Set TRUST_PROXY correctly**
+   - Behind Vercel/nginx/a load balancer: `TRUST_PROXY=true` so per-IP limits
+     use the real client IP from `X-Forwarded-For`
+   - Directly reachable: leave it unset — the header is spoofable and is ignored
 
 ### Highly Recommended:
 
@@ -91,10 +96,10 @@
    - JWT session auth ships built in; review role assignments and secret rotation
    - Consider adding multi-factor authentication for admin accounts
 
-7. **Upgrade Rate Limiting**
-   - Replace in-memory store with Redis
-   - Add distributed rate limiting for multiple servers
-   - Implement different tiers for authenticated users
+7. **Scale Rate Limiting**
+   - Set `REDIS_URL` to share rate-limit state across instances (built in —
+     see `src/lib/rateLimit.ts`)
+   - Implement different tiers for authenticated users if needed
 
 8. **Extend Audit Logging**
    - The borrowing lifecycle (requests, approvals, returns) is logged to `audit_logs`
@@ -106,27 +111,16 @@
    - Encrypt sensitive data at rest
    - Regular backups with encryption
 
-10. **Request Size Limits**
-    ```typescript
-    // next.config.ts
-    experimental: {
-      bodySizeLimit: '1mb',
-    }
-    ```
+10. **Request Size Limits (built in)**
+    - `src/middleware.ts` rejects API bodies over `MAX_REQUEST_SIZE` (default 1mb)
+      with 413 before handlers parse them
+    - Server Action bodies are capped by `bodySizeLimit` in `next.config.ts`
 
-11. **Add CSP Headers**
-    ```typescript
-    // next.config.ts
-    headers: async () => [{
-      source: '/:path*',
-      headers: [
-        {
-          key: 'Content-Security-Policy',
-          value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline';"
-        },
-      ],
-    }],
-    ```
+11. **Security Headers (built in)**
+    - `next.config.ts` sends CSP, HSTS, `X-Frame-Options`, `nosniff`,
+      `Referrer-Policy`, and `Permissions-Policy` on every response
+    - The CSP allows no third-party script origins; adjust in one place if a
+      integration ever needs one
 
 12. **Implement Monitoring**
     - Set up error tracking (Sentry, Rollbar)
@@ -183,18 +177,20 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ## 🚨 Known Limitations (Current Implementation)
 
-1. **In-Memory Rate Limiting**
-   - Resets on server restart
-   - Not suitable for multi-instance deployments
-   - **Solution**: Use Redis or similar
+1. **In-Memory Rate Limiting by Default**
+   - Without `REDIS_URL` the store resets on server restart and is not shared
+     across instances
+   - **Solution**: Set `REDIS_URL` for multi-instance deployments (built in)
 
 2. **Asset CRUD operations are not audit-logged**
    - Only the borrowing lifecycle and user administration write to `audit_logs`
    - **Solution**: Add audit entries in asset create/update/delete routes
 
-3. **No CSRF tokens or security headers**
-   - `sameSite=lax` cookies + JSON-only bodies block practical CSRF; add double-submit
-     tokens and CSP/HSTS headers in `next.config.ts` before public deployment
+3. **Same-origin CSRF model**
+   - State-changing routes reject cross-origin requests via Origin/Referer
+     validation (`src/lib/csrf.ts`) rather than per-form tokens; clients that
+     send neither header (non-browser tools) are not CSRF-able but also not
+     token-checked
 
 4. **No File Upload Validation**
    - If you add file uploads, validate file types and sizes
@@ -207,15 +203,14 @@ Before deploying to production:
 - [ ] Set a strong `JWT_SECRET` environment variable
 - [ ] Confirm session cookies are `secure` (NODE_ENV=production)
 - [ ] Configure HTTPS/SSL certificates
-- [ ] Set up Redis for rate limiting (required for multi-instance deployments)
-- [ ] Add CORS configuration
-- [ ] Enable CSRF protection (double-submit cookie) before public exposure
+- [ ] Set `REDIS_URL` (multi-instance) and `TRUST_PROXY=true` (behind a proxy)
+- [ ] Add CORS configuration if consumed cross-origin
+- [ ] Set `ALLOWED_ORIGINS` if the public origin differs from the internal host
 - [ ] Set up error monitoring (Sentry)
-- [ ] Configure CSP headers
+- [ ] Verify security headers are present (`curl -I` your deployed URL)
 - [ ] Enable database SSL connections
 - [ ] Set up automated backups
 - [ ] Review and update dependencies
-- [ ] Set up security headers (HSTS, X-Frame-Options, etc.)
 - [ ] Implement logging and monitoring
 - [ ] Create incident response plan
 - [ ] Set up rate limit alerting

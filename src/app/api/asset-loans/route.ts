@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`loans:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`loans:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const user = session.user;
     let loans;

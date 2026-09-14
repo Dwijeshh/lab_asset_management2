@@ -4,6 +4,7 @@ import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, createSessionToken, setSessionCookie } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import {
   isKeycloakEnabled,
@@ -42,6 +43,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     if (isKeycloakEnabled()) {
       return NextResponse.json(
         { error: 'This system uses single sign-on. Please sign in with SSO.' },
@@ -51,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting - strict for login (per IP, then per account below)
     const clientId = getClientIdentifier(request);
-    rateLimit(`auth:login:${clientId}`, { windowMs: 60000, maxRequests: 5 });
+    await rateLimit(`auth:login:${clientId}`, { windowMs: 60000, maxRequests: 5 });
 
     const body = await request.json();
     const { email, password } = body;
@@ -65,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Per-account throttle: slows credential stuffing against a known email
     // even when the attacker rotates IPs.
-    rateLimit(`auth:login:email:${email.toLowerCase()}`, {
+    await rateLimit(`auth:login:email:${email.toLowerCase()}`, {
       windowMs: 15 * 60 * 1000,
       maxRequests: 5,
     });

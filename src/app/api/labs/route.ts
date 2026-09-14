@@ -4,6 +4,7 @@ import { labs, colleges } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getSession, canCreateLabs, resolveCollegeFilter, parseCollegeIdParam } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { searchParams } = new URL(request.url);
     const collegeIdParam = searchParams.get('collegeId');
@@ -72,6 +73,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -90,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`labs:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`labs:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const body = await request.json();
 

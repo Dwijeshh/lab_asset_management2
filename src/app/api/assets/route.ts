@@ -4,7 +4,7 @@ import { assets, labs } from '@/db/schema';
 import { desc, ilike, or, eq, and } from 'drizzle-orm';
 import { validateSearchParams, validateAssetInput, ValidationError } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
-import { validateApiKey, UnauthorizedError } from '@/lib/auth';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import { getSession, resolveCollegeFilter, parseCollegeIdParam, canAccessCollege } from '@/lib/auth-jwt';
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`assets:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`assets:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     // Validate and sanitize search parameters
     const params = validateSearchParams(request.nextUrl.searchParams);
@@ -105,12 +105,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authentication (optional - uncomment to require API key)
-    // validateApiKey(request);
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
 
+  try {
     // Rate limiting - stricter for writes
     const clientId = getClientIdentifier(request);
-    rateLimit(`assets:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`assets:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     // Parse and validate request body
     const session = await getSession();
@@ -177,12 +186,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newAsset[0], { status: 201 });
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     if (error instanceof RateLimitError) {
       return NextResponse.json(
