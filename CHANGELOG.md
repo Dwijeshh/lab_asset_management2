@@ -45,6 +45,10 @@ All notable changes to the Lab Asset Management System.
   rejected with 413 in middleware; Server Action bodies capped in `next.config.ts`.
 - Removed the dead API-key auth module (`src/lib/auth.ts`); JWT sessions are the only
   authentication path.
+- **Asset CRUD audit trail** (`src/lib/audit.ts`): asset create, update (field-level
+  before/after diff including lab moves), and delete (full snapshot) now write to
+  `audit_logs`; the shared helper never lets an audit failure break the triggering
+  operation.
 
 ## [2.2.0] - 2026 - SSO, User Management & Session Control
 

@@ -7,6 +7,7 @@ import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit'
 import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import { getSession, canDeleteAssets, canAccessCollege } from '@/lib/auth-jwt';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(
   request: NextRequest,
@@ -178,6 +179,31 @@ export async function PUT(
       .where(eq(assets.id, assetId))
       .returning();
 
+    // Field-level diff for the audit trail: only what actually changed.
+    const trackedFields = [
+      'name', 'category', 'manufacturer', 'model', 'serialNumber',
+      'location', 'status', 'purchaseDate', 'warrantyExpiry', 'notes',
+    ] as const;
+    const before = existing[0];
+    const after = updatedAsset[0];
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    for (const field of trackedFields) {
+      const prev = before[field] ?? null;
+      const next = after[field] ?? null;
+      if (prev !== next) changes[field] = { from: prev, to: next };
+    }
+    if (labId !== undefined) {
+      changes.labId = { from: before.labId, to: after.labId };
+      changes.collegeId = { from: before.collegeId, to: after.collegeId };
+    }
+    await logAudit({
+      userId: session.user.id,
+      action: 'UPDATE',
+      entityType: 'asset',
+      entityId: assetId,
+      changes: Object.keys(changes).length > 0 ? changes : { unchanged: true },
+    });
+
     if (updatedAsset.length === 0) {
       return NextResponse.json(
         { error: 'Asset not found' },
@@ -288,6 +314,22 @@ export async function DELETE(
     }
 
     logger.info('Asset deleted', { assetId, name: deletedAsset[0].name });
+    // Snapshot the deleted asset — its row is gone, so this is the only
+    // surviving record of what it was.
+    await logAudit({
+      userId: session.user.id,
+      action: 'DELETE',
+      entityType: 'asset',
+      entityId: assetId,
+      changes: {
+        name: deletedAsset[0].name,
+        category: deletedAsset[0].category,
+        serialNumber: deletedAsset[0].serialNumber,
+        status: deletedAsset[0].status,
+        collegeId: deletedAsset[0].collegeId,
+        labId: deletedAsset[0].labId,
+      },
+    });
 
     return NextResponse.json({ message: 'Asset deleted successfully' });
   } catch (error) {

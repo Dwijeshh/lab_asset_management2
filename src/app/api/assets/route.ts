@@ -7,6 +7,7 @@ import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit'
 import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 import { getSession, resolveCollegeFilter, parseCollegeIdParam, canAccessCollege } from '@/lib/auth-jwt';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -183,6 +184,20 @@ export async function POST(request: NextRequest) {
     }).returning();
 
     logger.info('Asset created', { assetId: newAsset[0].id, name: newAsset[0].name });
+    await logAudit({
+      userId: session.user.id,
+      action: 'CREATE',
+      entityType: 'asset',
+      entityId: newAsset[0].id,
+      changes: {
+        name: newAsset[0].name,
+        category: newAsset[0].category,
+        serialNumber: newAsset[0].serialNumber,
+        status: newAsset[0].status,
+        collegeId,
+        labId,
+      },
+    });
 
     return NextResponse.json(newAsset[0], { status: 201 });
   } catch (error) {

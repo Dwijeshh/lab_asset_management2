@@ -179,7 +179,7 @@
 - SQL injection protection
 - XSS protection
 - Error sanitization (no internal errors reach clients)
-- Audit logging (borrowing lifecycle, user administration)
+- Audit logging (borrowing lifecycle, user administration, asset CRUD with field-level diffs)
 - Secure logging
 - Pagination & ID validation
 - Optional Keycloak OIDC SSO (PKCE + remote-JWKS verification)
@@ -291,6 +291,7 @@ src/
     ├── validation.ts             (Input validation ✅)
     ├── rateLimit.ts              (Rate limiting: Redis/memory ✅)
     ├── csrf.ts                   (Same-origin CSRF guard ✅)
+    ├── audit.ts                  (Audit-trail helper ✅)
     ├── auth-jwt.ts               (JWT sessions + college scoping ✅)
     ├── keycloak.ts               (Keycloak OIDC client ✅)
     ├── assets.ts                 (Shared category/status metadata ✅)

@@ -101,9 +101,11 @@
      see `src/lib/rateLimit.ts`)
    - Implement different tiers for authenticated users if needed
 
-8. **Extend Audit Logging**
-   - The borrowing lifecycle (requests, approvals, returns) is logged to `audit_logs`
-   - Consider logging asset create/update/delete operations too
+8. **Audit Logging**
+   - The borrowing lifecycle (requests, approvals, returns), user administration,
+     and asset create/update/delete (field-level diffs, delete snapshots) all
+     write to `audit_logs` via `src/lib/audit.ts`
+   - Consider adding lab create/update/delete entries too
 
 9. **Database Security**
    - Use connection pooling
@@ -182,9 +184,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
      across instances
    - **Solution**: Set `REDIS_URL` for multi-instance deployments (built in)
 
-2. **Asset CRUD operations are not audit-logged**
-   - Only the borrowing lifecycle and user administration write to `audit_logs`
-   - **Solution**: Add audit entries in asset create/update/delete routes
+2. **Lab CRUD operations are not audit-logged**
+   - Asset create/update/delete, the borrowing lifecycle, and user
+     administration all write to `audit_logs`; lab mutations do not yet
 
 3. **Same-origin CSRF model**
    - State-changing routes reject cross-origin requests via Origin/Referer
@@ -236,7 +238,7 @@ curl "http://localhost:3000/api/assets?search='; DROP TABLE assets; --"
 
 ### Automated Security Scanning:
 ```bash
-# 59 automated tests (Vitest): session handling, tenant isolation,
+# 64 automated tests (Vitest): session handling, tenant isolation,
 # login throttling, and the full borrowing lifecycle
 npm test
 
