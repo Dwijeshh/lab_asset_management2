@@ -177,8 +177,8 @@ export function parseCollegeIdParam(
   if (value === null || value === undefined || value === '' || value === 'all') {
     return null;
   }
-  const parsed = parseInt(value, 10);
-  if (isNaN(parsed) || parsed <= 0) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new Error('Invalid collegeId');
   }
   return parsed;

@@ -221,7 +221,25 @@ npm start
 
 # Push database schema
 npx drizzle-kit push
+
+# Run the test suite
+npm test
 ```
+
+## 🧪 Testing
+
+The test suite (Vitest) has two layers:
+
+- **Unit tests** (`tests/unit/`) — validation rules, session token handling, the tenant-isolation policy helpers, the rate limiter, and the Keycloak OIDC client helpers.
+- **API integration tests** (`tests/api/`) — run against the real app: the suite automatically builds and starts a test server (port 3112, next to your dev server) and drives the full HTTP surface: login throttling, session revocation on password changes, account disabling, tenant isolation, and the complete borrowing lifecycle.
+
+```bash
+npm test
+```
+
+The integration tests are idempotent — they create and clean up their own users and assets, and reject leftover pending requests. By default they run against your dev database; point `TEST_DATABASE_URL` at a scratch database (run `npx drizzle-kit push --force` and `npm run seed` against it first) for full isolation. `TEST_APP_PORT` overrides the server port.
+
+CI runs typecheck, lint, schema push, seed, build, and the test suite on `main` and every `feature/**` branch; the Vercel deploy only happens on `main` and only after tests pass.
 
 ## 🔐 Single Sign-On (Keycloak)
 

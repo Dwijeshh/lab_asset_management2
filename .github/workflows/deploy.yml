@@ -4,12 +4,33 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build & Verify
+  test:
+    name: Typecheck, Lint & Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_db
+      JWT_SECRET: ci-test-secret-0123456789abcdefghijklmnop
+      NODE_ENV: production
 
     steps:
       - name: Checkout code
@@ -24,15 +45,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run TypeScript check
+      - name: TypeScript check
         run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Push schema
+        run: npx drizzle-kit push --force
+
+      - name: Seed database
+        run: npm run seed
 
       - name: Build application
         run: npm run build
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/app_db' }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-build-test-secret-min-32-chars-long' }}
-          NODE_ENV: production
+
+      - name: Run test suite
+        run: npm test
+
+  deploy:
+    name: Deploy to Vercel
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Deploy to Vercel
         if: ${{ env.VERCEL_TOKEN != '' }}
