@@ -1,18 +1,10 @@
 'use client';
 
 import React from 'react';
-
-export interface College {
-  id: number;
-  name: string;
-  code: string;
-  address?: string | null;
-  contactEmail?: string | null;
-  isActive: boolean;
-}
+import type { College, Role } from '@/lib/useSession';
 
 interface CollegeSelectorProps {
-  userRole: 'admin' | 'main_technician' | 'technician';
+  userRole: Role;
   userCollegeId: number;
   colleges: College[];
   selectedCollegeId: string; // 'all' or numeric string ID

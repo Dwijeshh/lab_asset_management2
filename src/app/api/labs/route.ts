@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { labs, colleges } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { getSession, canCreateLabs } from '@/lib/auth-jwt';
+import { getSession, canCreateLabs, resolveCollegeFilter, parseCollegeIdParam } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { logger, sanitizeError } from '@/lib/logger';
 
@@ -23,14 +23,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const collegeIdParam = searchParams.get('collegeId');
 
-    let filterCollegeId: number | null = null;
-    if (session.user.role === 'admin') {
-      if (collegeIdParam && collegeIdParam !== 'all') {
-        filterCollegeId = parseInt(collegeIdParam);
-      }
-    } else {
-      // Non-admins are strictly locked to their assigned college
-      filterCollegeId = session.user.collegeId;
+    // Single policy owner: admins may filter to one college or see all;
+    // non-admins are strictly locked to their assigned college.
+    let filterCollegeId: number | null;
+    try {
+      filterCollegeId = resolveCollegeFilter(session.user, collegeIdParam);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Invalid collegeId' },
+        { status: 400 }
+      );
     }
 
     let allLabs;
@@ -100,9 +102,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const targetCollegeId = (session.user.role === 'admin' && body.collegeId)
-      ? parseInt(body.collegeId)
-      : session.user.collegeId;
+    // Single policy owner: non-admins are pinned to their own college;
+    // admins may target a specific one. 'all'/malformed values are rejected.
+    let targetCollegeId = session.user.collegeId;
+    if (session.user.role === 'admin' && body.collegeId) {
+      const parsedCollegeId = parseCollegeIdParam(String(body.collegeId));
+      if (parsedCollegeId === null) {
+        return NextResponse.json(
+          { error: 'Invalid collegeId: specify a single institution' },
+          { status: 400 }
+        );
+      }
+      targetCollegeId = parsedCollegeId;
+    }
 
     const newLab = await db.insert(labs).values({
       name: body.name,

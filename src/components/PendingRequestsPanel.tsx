@@ -76,6 +76,11 @@ export default function PendingRequestsPanel({ userRole }: { userRole: string })
                 }`}>
                   {req.request.loanType}
                 </span>
+                {req.request.loanType === 'temporary' && req.request.expectedReturnDate && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    until {new Date(req.request.expectedReturnDate).toLocaleDateString()}
+                  </div>
+                )}
               </td>
               <td className="px-4 py-3">
                 <span className={`px-2 py-1 text-[10px] font-semibold rounded-full uppercase ${

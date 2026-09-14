@@ -6,7 +6,7 @@ import { validateSearchParams, validateAssetInput, ValidationError } from '@/lib
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { validateApiKey, UnauthorizedError } from '@/lib/auth';
 import { logger, sanitizeError } from '@/lib/logger';
-import { getSession } from '@/lib/auth-jwt';
+import { getSession, resolveCollegeFilter, parseCollegeIdParam, canAccessCollege } from '@/lib/auth-jwt';
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,20 +47,22 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(assets.category, params.category));
     }
     
-    // Multi-institution isolation
+    // Multi-institution isolation (single policy owner: resolveCollegeFilter)
+    let allAssets;
     const collegeIdParam = request.nextUrl.searchParams.get('collegeId');
-
-    if (session.user.role === 'admin') {
-      // Admin can view specific college or all colleges
-      if (collegeIdParam && collegeIdParam !== 'all') {
-        conditions.push(eq(assets.collegeId, parseInt(collegeIdParam)));
-      }
-    } else {
-      // Technicians strictly locked to their assigned college
-      conditions.push(eq(assets.collegeId, session.user.collegeId));
+    let collegeFilter: number | null;
+    try {
+      collegeFilter = resolveCollegeFilter(session.user, collegeIdParam);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Invalid collegeId' },
+        { status: 400 }
+      );
+    }
+    if (collegeFilter !== null) {
+      conditions.push(eq(assets.collegeId, collegeFilter));
     }
 
-    let allAssets;
     if (conditions.length > 0) {
       // @ts-ignore - Drizzle types can be complex
       allAssets = await query
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = validateAssetInput(body);
-    
+
     // Use lab from request or user's default lab
     const rawLabId = body.labId || session.user.labId;
     if (!rawLabId) {
@@ -130,9 +132,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const labId = parseInt(rawLabId);
+    const labId = parseInt(rawLabId, 10);
+    if (isNaN(labId) || labId <= 0) {
+      return NextResponse.json({ error: 'Invalid lab ID' }, { status: 400 });
+    }
 
-    // Verify lab exists and check institution isolation
+    // Verify lab exists and enforce institution isolation: the TARGET lab's
+    // college is what matters, not the asset being edited.
     const targetLab = await db.select().from(labs).where(eq(labs.id, labId)).limit(1);
     if (targetLab.length === 0) {
       return NextResponse.json(
@@ -141,7 +147,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'admin' && targetLab[0].collegeId !== session.user.collegeId) {
+    if (!canAccessCollege(session.user, targetLab[0].collegeId)) {
       return NextResponse.json(
         { error: 'Forbidden: You cannot add equipment to a laboratory outside your assigned institution.' },
         { status: 403 }

@@ -1,35 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import AssetForm from '@/components/AssetForm';
 import AssetList from '@/components/AssetList';
 import SearchBar from '@/components/SearchBar';
 import StatsCards from '@/components/StatsCards';
 import LabManagement from '@/components/LabManagement';
-import CollegeSelector, { College } from '@/components/CollegeSelector';
-import NotificationBell from '@/components/NotificationBell';
+import AppHeader from '@/components/AppHeader';
+import { logout, useSession, type College, type Lab } from '@/lib/useSession';
 import BorrowRequestModal from '@/components/BorrowRequestModal';
 import PendingRequestsPanel from '@/components/PendingRequestsPanel';
 import ActiveLoansPanel from '@/components/ActiveLoansPanel';
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: 'admin' | 'main_technician' | 'technician';
-  collegeId: number;
-  labId: number | null;
-}
-
 export default function HomePage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const user = useSession();
   const [colleges, setColleges] = useState<College[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>('all');
   const [assets, setAssets] = useState<any[]>([]);
-  const [filteredAssets, setFilteredAssets] = useState<any[]>([]);
-  const [labs, setLabs] = useState<any[]>([]);
+  const [labs, setLabs] = useState<Lab[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showLabManagement, setShowLabManagement] = useState(false);
@@ -37,25 +30,6 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'assets' | 'requests' | 'loans'>('assets');
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestingAsset, setRequestingAsset] = useState<any>(null);
-
-  const fetchUser = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include'
-      });
-      if (response.status === 401) {
-        router.push('/login');
-        return null;
-      }
-      const data = await response.json();
-      setUser(data.user);
-      return data.user;
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      router.push('/login');
-      return null;
-    }
-  };
 
   const fetchColleges = async () => {
     try {
@@ -108,9 +82,7 @@ export default function HomePage() {
       }
       
       const data = await response.json();
-      const assetData = data.data || data;
-      setAssets(assetData);
-      setFilteredAssets(assetData);
+      setAssets(data.data || data);
     } catch (error) {
       console.error('Error fetching assets:', error);
     } finally {
@@ -124,31 +96,23 @@ export default function HomePage() {
     fetchAssets(collegeId);
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
   useEffect(() => {
     const initData = async () => {
-      const loggedUser = await fetchUser();
+      if (!user) return;
       await fetchColleges();
-      if (loggedUser) {
-        // For non-admin, initialize selectedCollegeId to their assigned college
-        const initialCollege = loggedUser.role === 'admin' ? 'all' : loggedUser.collegeId.toString();
-        setSelectedCollegeId(initialCollege);
-        await fetchLabs(initialCollege);
-        await fetchAssets(initialCollege);
-      }
+      // For non-admin, initialize selectedCollegeId to their assigned college
+      const initialCollege = user.role === 'admin' ? 'all' : user.collegeId.toString();
+      setSelectedCollegeId(initialCollege);
+      await fetchLabs(initialCollege);
+      await fetchAssets(initialCollege);
     };
     initData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
-  const handleSearch = (search: string, status: string, category: string) => {
+  // Derived filter state: assets are the single stored copy; the visible list
+  // is always computed from it.
+  const filteredAssets = useMemo(() => {
     let filtered = assets;
 
     if (search) {
@@ -161,16 +125,16 @@ export default function HomePage() {
       );
     }
 
-    if (status) {
-      filtered = filtered.filter(asset => asset.status === status);
+    if (statusFilter) {
+      filtered = filtered.filter(asset => asset.status === statusFilter);
     }
 
-    if (category) {
-      filtered = filtered.filter(asset => asset.category === category);
+    if (categoryFilter) {
+      filtered = filtered.filter(asset => asset.category === categoryFilter);
     }
 
-    setFilteredAssets(filtered);
-  };
+    return filtered;
+  }, [assets, search, statusFilter, categoryFilter]);
 
   const handleEdit = (asset: any) => {
     setEditingAsset(asset);
@@ -238,51 +202,14 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <img
-              src="/logo.jpg"
-              alt="MAHE Logo"
-              className="h-16 w-auto object-contain rounded-lg border border-gray-200 bg-white p-1 shadow-sm"
-            />
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-                Lab Asset Management
-              </h1>
-              <p className="mt-0.5 text-gray-600 font-medium text-sm">
-                Manipal Academy of Higher Education (MAHE)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Institution Switcher (Admin only) or Institution Lock Badge */}
-            <CollegeSelector
-              userRole={user.role}
-              userCollegeId={user.collegeId}
-              colleges={colleges}
-              selectedCollegeId={selectedCollegeId}
-              onCollegeChange={handleCollegeChange}
-            />
-
-            <div className="flex items-center gap-3 border-l pl-3 border-gray-200">
-              <NotificationBell />
-              <div className="text-right ml-2">
-                <span className="text-sm font-semibold text-gray-800 block">{user.name}</span>
-                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${roleColors[user.role]}`}>
-                  {roleLabels[user.role]}
-                </span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 border border-gray-200 transition-colors font-medium"
-                title="Sign out"
-              >
-                Sign out →
-              </button>
-            </div>
-          </div>
-        </div>
+        <AppHeader
+          user={user}
+          colleges={colleges}
+          selectedCollegeId={selectedCollegeId}
+          onCollegeChange={handleCollegeChange}
+          title="Lab Asset Management"
+          subtitle="Manipal Academy of Higher Education (MAHE)"
+        />
 
         {/* Institution Scope Notification Banner */}
         <div className="mb-6 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 px-4 py-3 rounded-xl shadow-xs">
@@ -349,7 +276,13 @@ export default function HomePage() {
           <>
             {/* Action Bar */}
             <div className="mb-6 flex flex-wrap gap-3 justify-between items-center mt-2">
-              <SearchBar onSearch={handleSearch} />
+              <SearchBar
+                onSearch={(s, st, cat) => {
+                  setSearch(s);
+                  setStatusFilter(st);
+                  setCategoryFilter(cat);
+                }}
+              />
               <div className="flex gap-2">
                 {(user.role === 'admin' || user.role === 'main_technician') && (
                   <button

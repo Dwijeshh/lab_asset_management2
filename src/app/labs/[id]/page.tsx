@@ -4,15 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AssetForm from '@/components/AssetForm';
 import AssetList from '@/components/AssetList';
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: 'admin' | 'main_technician' | 'technician';
-  collegeId: number;
-  labId: number | null;
-}
+import { useSession } from '@/lib/useSession';
 
 interface Lab {
   id: number;
@@ -39,30 +31,13 @@ export default function LabDashboardPage() {
   const params = useParams();
   const labId = params.id as string;
   
-  const [user, setUser] = useState<User | null>(null);
+  const user = useSession();
   const [lab, setLab] = useState<Lab | null>(null);
   const [labUsers, setLabUsers] = useState<LabUser[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
-
-  const fetchUser = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include'
-      });
-      if (response.status === 401) {
-        router.push('/login');
-        return;
-      }
-      const data = await response.json();
-      setUser(data.user);
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      router.push('/login');
-    }
-  };
 
   const fetchLabDetails = async () => {
     try {
@@ -97,7 +72,6 @@ export default function LabDashboardPage() {
   };
 
   useEffect(() => {
-    fetchUser();
     fetchLabDetails();
     fetchLabAssets();
   }, [labId]);

@@ -52,6 +52,7 @@ export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
             <th className="px-4 py-3">Borrower</th>
             <th className="px-4 py-3">Lab</th>
             <th className="px-4 py-3">Loan Date</th>
+            <th className="px-4 py-3">Expected Return</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3 text-right">Actions</th>
           </tr>
@@ -66,6 +67,22 @@ export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
               <td className="px-4 py-3 font-medium text-gray-900">{loan.borrower?.name}</td>
               <td className="px-4 py-3">{loan.lab?.name || 'N/A'}</td>
               <td className="px-4 py-3 text-xs">{new Date(loan.loan.loanDate).toLocaleDateString()}</td>
+              <td className="px-4 py-3 text-xs">
+                {loan.loan.loanType === 'permanent' ? (
+                  <span className="text-gray-400">—</span>
+                ) : loan.loan.expectedReturnDate ? (
+                  <span className={
+                    loan.loan.status === 'active' && new Date(loan.loan.expectedReturnDate) < new Date()
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-700'
+                  }>
+                    {new Date(loan.loan.expectedReturnDate).toLocaleDateString()}
+                    {loan.loan.status === 'active' && new Date(loan.loan.expectedReturnDate) < new Date() && ' (overdue)'}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">Not set</span>
+                )}
+              </td>
               <td className="px-4 py-3">
                 <span className={`px-2 py-1 text-[10px] font-semibold rounded-full uppercase ${
                   loan.loan.status === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'

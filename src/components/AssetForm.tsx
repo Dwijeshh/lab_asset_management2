@@ -1,40 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-const categories = [
-  // Computing & IT Equipment
-  { value: 'cpu', label: 'CPU / Desktop' },
-  { value: 'monitor', label: 'Monitor' },
-  { value: 'laptop', label: 'Laptop' },
-  { value: 'printer', label: 'Printer' },
-  { value: 'projector', label: 'Projector' },
-  { value: 'server', label: 'Server' },
-  { value: 'network_device', label: 'Network Device (Switch / Router)' },
-  { value: 'ups', label: 'UPS' },
-  { value: 'keyboard_mouse', label: 'Keyboard / Mouse' },
-  // Electrical & Electronics Equipment
-  { value: 'oscilloscope', label: 'Oscilloscope (CRO / DSO)' },
-  { value: 'function_generator', label: 'Function / Signal Generator' },
-  { value: 'power_supply', label: 'DC Power Supply' },
-  { value: 'multimeter', label: 'Digital Multimeter' },
-  { value: 'soldering_station', label: 'Soldering Station' },
-  { value: 'microcontroller_kit', label: 'Microcontroller / Dev Board Kit' },
-  // Mechanical & Workshop Equipment
-  { value: 'three_d_printer', label: '3D Printer' },
-  { value: 'lathe_machine', label: 'Lathe Machine' },
-  { value: 'milling_machine', label: 'Milling / Drilling Machine' },
-  { value: 'testing_machine', label: 'Material Testing Machine (UTM)' },
-  // General
-  { value: 'other', label: 'Other Engineering Asset' },
-];
-
-const statuses = [
-  { value: 'available', label: 'Available' },
-  { value: 'in_use', label: 'In Use' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'retired', label: 'Retired' },
-];
+import { ASSET_CATEGORIES, STATUSES } from '@/lib/assets';
 
 interface AssetFormProps {
   asset?: any;
@@ -151,7 +118,7 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {categories.map(cat => (
+              {ASSET_CATEGORIES.map(cat => (
                 <option key={cat.value} value={cat.value}>
                   {cat.label}
                 </option>
@@ -247,7 +214,7 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {statuses.map(status => (
+              {STATUSES.map(status => (
                 <option key={status.value} value={status.value}>
                   {status.label}
                 </option>

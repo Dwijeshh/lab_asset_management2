@@ -1,5 +1,7 @@
 // Secure logging that doesn't expose sensitive data
 
+import { ValidationError } from '@/lib/validation';
+
 export enum LogLevel {
   ERROR = 'ERROR',
   WARN = 'WARN',
@@ -64,16 +66,17 @@ export const logger = {
 };
 
 // Sanitize error for client response
+//
+// ORM/driver errors embed raw SQL and bound parameters in their message
+// (e.g. Drizzle wraps failures as `Failed query: select ...`), so
+// error.message must never reach a client — even in development. Responses
+// always get a fixed generic string; the full error stays in server logs.
 export function sanitizeError(error: unknown): string {
-  if (process.env.NODE_ENV === 'production') {
-    // Never expose error details in production
-    return 'An error occurred';
-  }
-
-  // Development mode - can show more details
-  if (error instanceof Error) {
+  if (error instanceof ValidationError) {
+    // Validation messages are deliberate, user-facing strings.
     return error.message;
   }
 
-  return 'An unknown error occurred';
+  // Everything else: fixed generic string in every environment.
+  return 'An error occurred';
 }

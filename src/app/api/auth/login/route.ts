@@ -4,23 +4,18 @@ import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, createSessionToken, setSessionCookie } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
-import { logger } from '@/lib/logger';
+import { logger, sanitizeError } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Login attempt received');
-    
     // Rate limiting - strict for login
     const clientId = getClientIdentifier(request);
     rateLimit(`auth:login:${clientId}`, { windowMs: 60000, maxRequests: 5 });
 
     const body = await request.json();
     const { email, password } = body;
-    
-    console.log('Login request for email:', email);
 
     if (!email || !password) {
-      console.log('Missing email or password');
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
@@ -28,14 +23,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    console.log('Searching for user:', email.toLowerCase());
     const userResult = await db
       .select()
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
       .limit(1);
-    
-    console.log('User search result:', userResult.length > 0 ? 'Found' : 'Not found');
 
     if (userResult.length === 0) {
       // Generic error to prevent user enumeration
@@ -56,12 +48,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password
-    console.log('Verifying password...');
     const isValid = await verifyPassword(password, user.passwordHash);
-    console.log('Password valid:', isValid);
 
     if (!isValid) {
-      console.log('Invalid password for user:', email);
+      // No email in logs: failed attempts are an auth signal, not PII to retain
+      logger.warn('Failed login attempt');
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -75,7 +66,6 @@ export async function POST(request: NextRequest) {
       .where(eq(users.id, user.id));
 
     // Create session token
-    console.log('Creating session token...');
     const token = await createSessionToken({
       id: user.id,
       email: user.email,
@@ -86,11 +76,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Set cookie
-    console.log('Setting session cookie...');
     await setSessionCookie(token);
-    console.log('Login successful for:', email);
 
-    logger.info('User logged in', { userId: user.id, email: user.email });
+    logger.info('User logged in', { userId: user.id });
 
     return NextResponse.json({
       user: {
@@ -113,10 +101,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Login error details:', error);
     logger.error('Login error', { error });
     return NextResponse.json(
-      { error: 'An error occurred during login', details: error instanceof Error ? error.message : String(error) },
+      { error: 'An error occurred during login' },
       { status: 500 }
     );
   }

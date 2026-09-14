@@ -16,7 +16,6 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log('Submitting login...');
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -26,9 +25,7 @@ export default function LoginPage() {
         credentials: 'include', // Important: include cookies
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (!response.ok) {
         setError(data.error || 'Login failed');
@@ -36,15 +33,13 @@ export default function LoginPage() {
         return;
       }
 
-      console.log('Login successful, redirecting...');
       // Small delay to ensure cookie is set
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Redirect to home page
       window.location.href = '/';
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('An error occurred during login: ' + (err instanceof Error ? err.message : String(err)));
+    } catch {
+      setError('An error occurred during login. Please try again.');
       setLoading(false);
     }
   };

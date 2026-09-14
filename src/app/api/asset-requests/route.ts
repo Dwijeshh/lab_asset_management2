@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { assets, assetRequests, users, notifications } from '@/db/schema';
+import { assets, assetRequests, users, notifications, auditLogs } from '@/db/schema';
 import { eq, and, desc, or } from 'drizzle-orm';
 import { getSession } from '@/lib/auth-jwt';
+import { logger, sanitizeError } from '@/lib/logger';
+import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 
 export async function GET(request: Request) {
   try {
@@ -79,8 +81,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ data: requests });
   } catch (error) {
-    console.error('Error fetching asset requests:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfter: error.retryAfter },
+        { status: 429, headers: { 'Retry-After': error.retryAfter.toString() } }
+      );
+    }
+
+    logger.error('Error fetching asset requests', { error });
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }
 
@@ -91,20 +100,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limiting - stricter for writes
+    const clientId = getClientIdentifier(request);
+    rateLimit(`requests:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+
     const user = session.user;
     if (!user.labId) {
       return NextResponse.json({ error: 'You must be assigned to a lab to request assets' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { assetId, loanType, notes } = body;
+    const { assetId, loanType, notes, expectedReturnDate } = body;
 
     if (!assetId || !loanType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    if (loanType !== 'temporary' && loanType !== 'permanent') {
+      return NextResponse.json({ error: 'Invalid loan type' }, { status: 400 });
+    }
+
+    // Proposed return date: optional, temporary loans only, must be in the future.
+    let parsedReturnDate: Date | null = null;
+    if (expectedReturnDate !== undefined && expectedReturnDate !== null && expectedReturnDate !== '') {
+      if (loanType !== 'temporary') {
+        return NextResponse.json(
+          { error: 'Expected return date only applies to temporary loans' },
+          { status: 400 }
+        );
+      }
+      parsedReturnDate = new Date(expectedReturnDate);
+      if (isNaN(parsedReturnDate.getTime()) || parsedReturnDate.getTime() <= Date.now()) {
+        return NextResponse.json(
+          { error: 'Expected return date must be a valid future date' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const parsedAssetId = parseInt(assetId, 10);
+    if (isNaN(parsedAssetId) || parsedAssetId <= 0) {
+      return NextResponse.json({ error: 'Invalid asset ID' }, { status: 400 });
+    }
+
+    // A requester may only have one open request per asset; duplicates would
+    // notify the owner college repeatedly and could double-approve.
+    const openRequest = await db.query.assetRequests.findFirst({
+      where: and(
+        eq(assetRequests.assetId, parsedAssetId),
+        eq(assetRequests.requesterId, user.id),
+        eq(assetRequests.status, 'pending')
+      ),
+    });
+    if (openRequest) {
+      return NextResponse.json(
+        { error: 'You already have a pending request for this asset' },
+        { status: 409 }
+      );
+    }
+
     const asset = await db.query.assets.findFirst({
-      where: eq(assets.id, assetId),
+      where: eq(assets.id, parsedAssetId),
     });
 
     if (!asset) return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
@@ -120,8 +176,22 @@ export async function POST(request: Request) {
       ownerCollegeId: asset.collegeId!,
       loanType,
       notes,
+      expectedReturnDate: parsedReturnDate,
       status: 'pending',
     }).returning();
+
+    // Audit trail
+    await db.insert(auditLogs).values({
+      userId: user.id,
+      action: 'CREATE',
+      entityType: 'asset_request',
+      entityId: newRequest[0].id,
+      changes: JSON.stringify({
+        assetId,
+        loanType,
+        expectedReturnDate: parsedReturnDate?.toISOString() ?? null,
+      }),
+    });
 
     const mainTechs = await db.query.users.findMany({
       where: and(
@@ -144,7 +214,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: newRequest[0] }, { status: 201 });
   } catch (error) {
-    console.error('Error creating asset request:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfter: error.retryAfter },
+        { status: 429, headers: { 'Retry-After': error.retryAfter.toString() } }
+      );
+    }
+
+    logger.error('Error creating asset request', { error });
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }

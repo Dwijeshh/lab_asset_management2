@@ -28,6 +28,8 @@ const VALID_CATEGORIES = [
   'other'
 ] as const;
 
+// NOTE: values above must stay in sync with ASSET_CATEGORIES in src/lib/assets.ts
+
 export type AssetStatus = typeof VALID_STATUSES[number];
 export type AssetCategory = typeof VALID_CATEGORIES[number];
 

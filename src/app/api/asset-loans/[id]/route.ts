@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { assets, assetLoans, notifications } from '@/db/schema';
+import { assets, assetLoans, notifications, auditLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getSession } from '@/lib/auth-jwt';
+import { getSession, canAccessCollege } from '@/lib/auth-jwt';
+import { logger, sanitizeError } from '@/lib/logger';
+import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -15,6 +17,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (user.role !== 'admin' && user.role !== 'main_technician') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    // Rate limiting - stricter for write actions
+    const clientId = getClientIdentifier(request);
+    rateLimit(`loans:put:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const { id } = await params;
     const loanId = parseInt(id);
@@ -41,7 +47,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Loan is already returned' }, { status: 400 });
     }
 
-    if (user.role !== 'admin' && asset.collegeId !== user.collegeId) {
+    // Single policy owner: non-admins may only return loans whose asset
+    // belongs to their own college.
+    if (!canAccessCollege(session.user, asset.collegeId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -67,9 +75,32 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       relatedLoanId: loanId,
     });
 
+    // Audit trail
+    await db.insert(auditLogs).values({
+      userId: user.id,
+      action: 'UPDATE',
+      entityType: 'asset_loan',
+      entityId: loanId,
+      changes: JSON.stringify({
+        assetId: loan.assetId,
+        borrowerId: loan.borrowerId,
+        status: 'returned',
+        loanDate: loan.loanDate,
+        wasOverdue:
+          loan.expectedReturnDate !== null && loan.expectedReturnDate < new Date(),
+      }),
+    });
+
     return NextResponse.json({ message: 'Asset marked as returned successfully' });
   } catch (error) {
-    console.error('Error returning asset loan:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfter: error.retryAfter },
+        { status: 429, headers: { 'Retry-After': error.retryAfter.toString() } }
+      );
+    }
+
+    logger.error('Error returning asset loan', { error });
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }

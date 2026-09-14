@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { colleges } from '@/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
-import { getSession } from '@/lib/auth-jwt';
+import { getSession, resolveCollegeFilter } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { logger, sanitizeError } from '@/lib/logger';
 
@@ -22,31 +22,25 @@ export async function GET(request: NextRequest) {
 
     const user = session.user;
 
-    // Admin can see all institutions; Technicians only see their assigned institution
-    if (user.role === 'admin') {
-      const allColleges = await db
-        .select()
-        .from(colleges)
-        .where(eq(colleges.isActive, true))
-        .orderBy(asc(colleges.id));
+    // Single policy owner: admins see all (active) institutions, everyone
+    // else only their assigned one.
+    const collegeFilter = resolveCollegeFilter(user, null);
 
-      return NextResponse.json({
-        data: allColleges,
-        userRole: user.role,
-        userCollegeId: user.collegeId,
-      });
-    } else {
-      const userCollege = await db
-        .select()
-        .from(colleges)
-        .where(and(eq(colleges.id, user.collegeId), eq(colleges.isActive, true)));
+    const visibleColleges = await db
+      .select()
+      .from(colleges)
+      .where(
+        collegeFilter === null
+          ? eq(colleges.isActive, true)
+          : and(eq(colleges.id, collegeFilter), eq(colleges.isActive, true))
+      )
+      .orderBy(asc(colleges.id));
 
-      return NextResponse.json({
-        data: userCollege,
-        userRole: user.role,
-        userCollegeId: user.collegeId,
-      });
-    }
+    return NextResponse.json({
+      data: visibleColleges,
+      userRole: user.role,
+      userCollegeId: user.collegeId,
+    });
   } catch (error) {
     if (error instanceof RateLimitError) {
       return NextResponse.json(

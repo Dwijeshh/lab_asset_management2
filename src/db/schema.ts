@@ -143,6 +143,7 @@ export const assetRequests = pgTable('asset_requests', {
   loanType: loanTypeEnum('loan_type').notNull().default('temporary'),
   status: requestStatusEnum('status').notNull().default('pending'),
   notes: text('notes'),
+  expectedReturnDate: timestamp('expected_return_date'), // borrower's proposed date (temporary loans)
   reviewedById: integer('reviewed_by_id').references(() => users.id),
   reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),

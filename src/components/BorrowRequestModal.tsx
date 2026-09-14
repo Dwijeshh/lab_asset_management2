@@ -11,6 +11,7 @@ interface BorrowRequestModalProps {
 export default function BorrowRequestModal({ asset, onClose, onSuccess }: BorrowRequestModalProps) {
   const [loanType, setLoanType] = useState('temporary');
   const [notes, setNotes] = useState('');
+  const [expectedReturnDate, setExpectedReturnDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,6 +28,7 @@ export default function BorrowRequestModal({ asset, onClose, onSuccess }: Borrow
           assetId: asset.id,
           loanType,
           notes,
+          ...(loanType === 'temporary' && expectedReturnDate && { expectedReturnDate }),
         }),
       });
 
@@ -94,6 +96,24 @@ export default function BorrowRequestModal({ asset, onClose, onSuccess }: Borrow
               </label>
             </div>
           </div>
+
+          {loanType === 'temporary' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expected Return Date
+              </label>
+              <input
+                type="date"
+                value={expectedReturnDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setExpectedReturnDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                When you plan to return the asset. The approver can adjust this.
+              </p>
+            </div>
+          )}
 
           <div className="mb-5">
             <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { assets, labs } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { getSession } from '@/lib/auth-jwt';
+import { getSession, canAccessCollege } from '@/lib/auth-jwt';
+import { logger, sanitizeError } from '@/lib/logger';
+import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +18,10 @@ export async function GET(
         { status: 401 }
       );
     }
+
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { id } = await params;
     const labId = parseInt(id, 10);
@@ -41,7 +47,7 @@ export async function GET(
       );
     }
 
-    if (session.user.role !== 'admin' && labResult[0].collegeId !== session.user.collegeId) {
+    if (!canAccessCollege(session.user, labResult[0].collegeId)) {
       return NextResponse.json(
         { error: 'Access denied: You do not have permission to access laboratories from other institutions' },
         { status: 403 }
@@ -59,9 +65,19 @@ export async function GET(
       data: labAssets,
     });
   } catch (error) {
-    console.error('Error fetching lab assets:', error);
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfter: error.retryAfter },
+        {
+          status: 429,
+          headers: { 'Retry-After': error.retryAfter.toString() }
+        }
+      );
+    }
+
+    logger.error('Error fetching lab assets', { error });
     return NextResponse.json(
-      { error: 'Failed to fetch lab assets' },
+      { error: sanitizeError(error) },
       { status: 500 }
     );
   }

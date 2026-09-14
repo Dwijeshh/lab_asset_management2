@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { assets } from '@/db/schema';
+import { assets, labs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { validateAssetInput, ValidationError } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { validateApiKey, UnauthorizedError } from '@/lib/auth';
 import { logger, sanitizeError } from '@/lib/logger';
-import { getSession, canDeleteAssets } from '@/lib/auth-jwt';
+import { getSession, canDeleteAssets, canAccessCollege } from '@/lib/auth-jwt';
 
 export async function GET(
   request: NextRequest,
@@ -44,7 +44,7 @@ export async function GET(
       );
     }
 
-    if (session.user.role !== 'admin' && asset[0].collegeId && asset[0].collegeId !== session.user.collegeId) {
+    if (!canAccessCollege(session.user, asset[0].collegeId)) {
       return NextResponse.json(
         { error: 'Asset not found' },
         { status: 404 }
@@ -106,7 +106,7 @@ export async function PUT(
       );
     }
 
-    if (session.user.role !== 'admin' && existing[0].collegeId && existing[0].collegeId !== session.user.collegeId) {
+    if (!canAccessCollege(session.user, existing[0].collegeId)) {
       return NextResponse.json(
         { error: 'Forbidden: You cannot modify equipment belonging to another institution' },
         { status: 403 }
@@ -116,8 +116,35 @@ export async function PUT(
     const body = await request.json();
     const validatedData = validateAssetInput(body);
 
-    // Use lab from request or keep existing (will be validated by DB)
-    const labId = body.labId || undefined;
+    const labId = body.labId !== undefined ? parseInt(body.labId, 10) : undefined;
+    if (labId !== undefined && (isNaN(labId) || labId <= 0)) {
+      return NextResponse.json(
+        { error: 'Invalid lab ID' },
+        { status: 400 }
+      );
+    }
+
+    if (labId !== undefined) {
+      // Institution isolation on the TARGET lab: moving an asset into a lab
+      // is only allowed if that lab belongs to the user's college (admins
+      // exempt). Without this, a technician could move assets cross-college.
+      const targetLab = await db.select().from(labs).where(eq(labs.id, labId)).limit(1);
+      if (targetLab.length === 0) {
+        return NextResponse.json(
+          { error: 'Specified lab does not exist.' },
+          { status: 404 }
+        );
+      }
+      if (!canAccessCollege(session.user, targetLab[0].collegeId)) {
+        return NextResponse.json(
+          { error: 'Forbidden: You cannot move equipment to a laboratory outside your assigned institution.' },
+          { status: 403 }
+        );
+      }
+      // Keep the asset's college in sync with its lab so tenant alignment
+      // can never drift when the labId changes.
+      existing[0].collegeId = targetLab[0].collegeId;
+    }
 
     const updatedAsset = await db.update(assets)
       .set({
@@ -126,7 +153,8 @@ export async function PUT(
         manufacturer: validatedData.manufacturer || null,
         model: validatedData.model || null,
         serialNumber: validatedData.serialNumber || null,
-        ...(labId && { labId }),
+        ...(labId !== undefined && { labId }),
+        collegeId: existing[0].collegeId,
         location: validatedData.location,
         status: validatedData.status,
         purchaseDate: validatedData.purchaseDate || null,
@@ -224,13 +252,12 @@ export async function DELETE(
       );
     }
 
-    if (session.user.role !== 'admin' && existing[0].collegeId && existing[0].collegeId !== session.user.collegeId) {
+    if (!canAccessCollege(session.user, existing[0].collegeId)) {
       return NextResponse.json(
         { error: 'Forbidden: You cannot delete equipment belonging to another institution' },
         { status: 403 }
       );
     }
-
     const deletedAsset = await db.delete(assets)
       .where(eq(assets.id, assetId))
       .returning();

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { assets, assetRequests, assetLoans, users, notifications } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { getSession } from '@/lib/auth-jwt';
+import { assets, assetRequests, assetLoans, users, notifications, auditLogs } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { getSession, canAccessCollege } from '@/lib/auth-jwt';
+import { logger, sanitizeError } from '@/lib/logger';
+import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,6 +12,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Rate limiting - stricter for write actions
+    const clientId = getClientIdentifier(request);
+    rateLimit(`requests:put:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const user = session.user;
     if (user.role !== 'admin' && user.role !== 'main_technician') {
@@ -47,20 +53,43 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Request is already processed' }, { status: 400 });
     }
 
-    if (user.role !== 'admin' && existingRequest.ownerCollegeId !== user.collegeId) {
+    // Single policy owner: non-admins may only process requests owned by
+    // their own college.
+    if (!canAccessCollege(session.user, existingRequest.ownerCollegeId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
-    await db.update(assetRequests)
+    // Apply the decision atomically: the status flip acts as the concurrency
+    // guard, so a double-submit cannot approve twice or create two loans.
+    const updated = await db.update(assetRequests)
       .set({
         status: newStatus,
         reviewedById: user.id,
         reviewedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(assetRequests.id, requestId));
+      .where(and(eq(assetRequests.id, requestId), eq(assetRequests.status, 'pending')))
+      .returning({ id: assetRequests.id });
+
+    if (updated.length === 0) {
+      return NextResponse.json({ error: 'Request is already processed' }, { status: 400 });
+    }
+
+    // Return date for an approved loan: the approver may override it; the
+    // borrower's proposed date is the fallback. Permanent transfers have none.
+    let loanReturnDate: Date | null = null;
+    if (existingRequest.loanType === 'temporary') {
+      if (expectedReturnDate) {
+        loanReturnDate = new Date(expectedReturnDate);
+        if (isNaN(loanReturnDate.getTime())) {
+          return NextResponse.json({ error: 'Invalid expectedReturnDate' }, { status: 400 });
+        }
+      } else {
+        loanReturnDate = existingRequest.expectedReturnDate ?? null;
+      }
+    }
 
     let loanId: number | null = null;
 
@@ -72,7 +101,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         borrowerLabId: existingRequest.requesterLabId,
         approverId: user.id,
         loanType: existingRequest.loanType,
-        expectedReturnDate: expectedReturnDate ? new Date(expectedReturnDate) : null,
+        expectedReturnDate: loanReturnDate,
       }).returning();
 
       loanId = loan[0].id;
@@ -80,7 +109,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       if (existingRequest.loanType === 'permanent') {
         // Permanent: move asset to the requester's lab and keep status available
         await db.update(assets)
-          .set({ labId: existingRequest.requesterLabId, updatedAt: new Date() })
+          .set({ labId: existingRequest.requesterLabId, collegeId: existingRequest.requesterCollegeId, updatedAt: new Date() })
           .where(eq(assets.id, existingRequest.assetId));
       } else {
         // Temporary: mark asset in_use
@@ -100,9 +129,31 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       relatedLoanId: loanId,
     });
 
+    // Audit trail
+    await db.insert(auditLogs).values({
+      userId: user.id,
+      action: action === 'approve' ? 'APPROVE' : 'REJECT',
+      entityType: 'asset_request',
+      entityId: requestId,
+      changes: JSON.stringify({
+        assetId: existingRequest.assetId,
+        loanType: existingRequest.loanType,
+        borrowerId: existingRequest.requesterId,
+        loanId,
+        expectedReturnDate: loanReturnDate?.toISOString() ?? null,
+      }),
+    });
+
     return NextResponse.json({ message: `Request ${newStatus} successfully` });
   } catch (error) {
-    console.error('Error processing asset request:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfter: error.retryAfter },
+        { status: 429, headers: { 'Retry-After': error.retryAfter.toString() } }
+      );
+    }
+
+    logger.error('Error processing asset request', { error });
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }

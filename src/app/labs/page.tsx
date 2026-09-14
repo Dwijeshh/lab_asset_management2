@@ -3,58 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LabManagement from '@/components/LabManagement';
-import CollegeSelector, { College } from '@/components/CollegeSelector';
-import NotificationBell from '@/components/NotificationBell';
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: 'admin' | 'main_technician' | 'technician';
-  collegeId: number;
-  labId: number | null;
-}
-
-interface Lab {
-  id: number;
-  name: string;
-  code: string;
-  department?: string | null;
-  building?: string | null;
-  floor?: string | null;
-  roomNumber?: string | null;
-  capacity?: number | null;
-  isActive: boolean;
-  collegeId?: number;
-}
+import AppHeader from '@/components/AppHeader';
+import { logout, useSession, type College, type Lab } from '@/lib/useSession';
 
 export default function LabsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const user = useSession();
   const [colleges, setColleges] = useState<College[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>('all');
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-
-  const fetchUser = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include'
-      });
-      if (response.status === 401) {
-        router.push('/login');
-        return null;
-      }
-      const data = await response.json();
-      setUser(data.user);
-      return data.user;
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      router.push('/login');
-      return null;
-    }
-  };
 
   const fetchColleges = async () => {
     try {
@@ -99,25 +58,15 @@ export default function LabsPage() {
 
   useEffect(() => {
     const initData = async () => {
-      const loggedUser = await fetchUser();
+      if (!user) return;
       await fetchColleges();
-      if (loggedUser) {
-        const initialCollege = loggedUser.role === 'admin' ? 'all' : loggedUser.collegeId.toString();
-        setSelectedCollegeId(initialCollege);
-        await fetchLabs(initialCollege);
-      }
+      const initialCollege = user.role === 'admin' ? 'all' : user.collegeId.toString();
+      setSelectedCollegeId(initialCollege);
+      await fetchLabs(initialCollege);
     };
     initData();
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const canCreateLabs = user && (user.role === 'admin' || user.role === 'main_technician');
 
@@ -150,59 +99,15 @@ export default function LabsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div className="flex items-start gap-4">
-            <img
-              src="/logo.jpg"
-              alt="MAHE Logo"
-              className="h-14 w-auto object-contain rounded-lg border border-gray-200 bg-white p-1 shadow-sm mt-1"
-            />
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <button
-                  onClick={() => router.push('/')}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                >
-                  ← Back to Main Dashboard
-                </button>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-                Laboratory Management
-              </h1>
-              <p className="mt-0.5 text-gray-600 font-medium text-sm">
-                Manage and monitor all departmental laboratories
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Institution Switcher (Admin only) or Institution Lock Badge */}
-            <CollegeSelector
-              userRole={user.role}
-              userCollegeId={user.collegeId}
-              colleges={colleges}
-              selectedCollegeId={selectedCollegeId}
-              onCollegeChange={handleCollegeChange}
-            />
-
-            <div className="flex items-center gap-3 border-l pl-3 border-gray-200">
-              <NotificationBell />
-              <div className="text-right ml-2">
-                <span className="text-sm font-semibold text-gray-800 block">{user.name}</span>
-                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${roleColors[user.role]}`}>
-                  {roleLabels[user.role]}
-                </span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 border border-gray-200 transition-colors font-medium"
-                title="Sign out"
-              >
-                Sign out →
-              </button>
-            </div>
-          </div>
-        </div>
+        <AppHeader
+          user={user}
+          colleges={colleges}
+          selectedCollegeId={selectedCollegeId}
+          onCollegeChange={handleCollegeChange}
+          backLink={{ label: 'Back to Main Dashboard', href: '/' }}
+          title="Laboratory Management"
+          subtitle="Manage and monitor all departmental laboratories"
+        />
 
         {/* Action Bar */}
         <div className="mb-6 flex flex-wrap gap-4 items-center justify-between">
