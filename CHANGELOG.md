@@ -2,6 +2,144 @@
 
 All notable changes to the Lab Asset Management System.
 
+## [2.3.0] - 2026 - Test Suite & Database Migrations
+
+### 🧪 Automated Testing
+
+- 59-test Vitest suite in two layers:
+  - **Unit** (`tests/unit/`): validation rules, session-token handling, tenant-isolation
+    policy helpers, the rate limiter, and the Keycloak OIDC client helpers.
+  - **API integration** (`tests/api/`): builds and starts the real app on a test port and
+    drives the full HTTP surface — per-IP and per-account login throttling, session
+    revocation on password change/reset, immediate revocation on account disable,
+    cross-college 403s, forged-`collegeId` rejection, and the complete borrowing
+    lifecycle (request → duplicate 409 → approve → return → overdue).
+- Tests create and clean up their own data, so runs are idempotent against a shared
+  database; `TEST_DATABASE_URL` targets a scratch database for full isolation.
+- `npm test` script; CI runs the suite on every push and pull request.
+
+### 🗄️ Committed Database Migrations
+
+- `drizzle-kit push` replaced by committed, versioned migrations (`drizzle/`).
+- `drizzle/0000_baseline.sql` captures the full current schema (8 tables, 7 enums,
+  22 foreign keys) and is written **idempotently**, so it applies cleanly both to fresh
+  databases and to databases that predate migrations.
+- New workflow: `npm run db:generate` (diff schema → SQL), `npm run db:migrate` (apply),
+  `npm run db:check` (detect schema/migration drift). CI runs migrate + check.
+- Rollback procedure documented in README and DEPLOYMENT.md (backup restore; hot-fixes
+  via a corrective migration — never hand-edit an applied migration).
+
+### 🛡️ Security Hardening
+
+- **Redis-backed rate limiting** (`REDIS_URL`): shared per-IP/per-account state across
+  replicas, with automatic in-memory fallback if Redis is unreachable.
+- **Spoof-proof client identification**: `X-Forwarded-For` is trusted only when
+  `TRUST_PROXY=true`; otherwise direct clients share one bucket so a forged header
+  cannot escape throttling.
+- **Security headers** on every response (`next.config.ts`): Content-Security-Policy,
+  HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`,
+  `Permissions-Policy`.
+- **CSRF protection** (`src/lib/csrf.ts`): all 14 state-changing routes reject
+  cross-origin requests via Origin/Referer validation.
+- **Request body size limit**: API bodies over `MAX_REQUEST_SIZE` (default 1mb) are
+  rejected with 413 in middleware; Server Action bodies capped in `next.config.ts`.
+- Removed the dead API-key auth module (`src/lib/auth.ts`); JWT sessions are the only
+  authentication path.
+- **Asset CRUD audit trail** (`src/lib/audit.ts`): asset create, update (field-level
+  before/after diff including lab moves), and delete (full snapshot) now write to
+  `audit_logs`; the shared helper never lets an audit failure break the triggering
+  operation.
+- **Server-side pagination** on `GET /api/asset-requests`, `/api/asset-loans`, and
+  `/api/notifications` (`page`/`limit`, capped like `/api/assets`), with pagination
+  metadata in each response — these list endpoints previously returned unbounded
+  result sets.
+
+## [2.2.0] - 2026 - SSO, User Management & Session Control
+
+### 🔐 Single Sign-On (Keycloak OIDC)
+
+- Full OIDC authorization-code flow with PKCE: `/login` redirects to
+  Keycloak, `/api/auth/callback` validates state/nonce, exchanges the code,
+  and verifies the ID token via JWKS (issuer + audience + nonce).
+- Enabled with `AUTH_PROVIDER=keycloak` + `KEYCLOAK_URL` (realm),
+  `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`; the local password provider
+  remains the default for development.
+- Keycloak authenticates; local accounts stay authoritative for role,
+  college, lab and active state (admin pre-provisions, SSO login links the
+  subject id). SSO-linked accounts have no local password.
+- Logout returns the Keycloak end-session URL so the SSO session ends too.
+
+### 👥 Admin User Management
+
+- New admin-only APIs: `GET/POST /api/users`, `PUT /api/users/[id]`,
+  `PUT /api/users/[id]/password` — create accounts, assign role/college/lab,
+  enable/disable, reset passwords (with email/password validation and audit
+  log entries).
+- New admin **Users** page with create/edit/reset-password/disable actions.
+- Self-service `POST /api/auth/change-password` (verifies current password,
+  enforces the password policy).
+
+### 🛡️ Session Control
+
+- `users.sessionVersion` + DB-backed `getSession`: disabling an account,
+  changing a role/college, or resetting a password now takes effect
+  immediately — existing sessions are revoked instead of living until token
+  expiry.
+- Per-account login throttling (5 attempts / 15 min) on top of the per-IP
+  limit.
+
+## [2.1.0] - 2026 - Security Hardening, Borrowing Lifecycle & Cleanup
+
+### 🔒 Security Fixes
+
+- **Cross-college asset move closed**: asset PUT/POST now validates the
+  TARGET lab's institution; technicians can no longer move assets across
+  colleges, and `assets.collegeId` stays in sync with the lab.
+- **No more internal error leakage**: `sanitizeError` never returns raw
+  error messages (Drizzle embeds full SQL in them); malformed `collegeId`
+  returns 400 instead of a raw database error.
+- **PII scrubbed from logs**: removed email/password-adjacent console
+  logging from the login flow (server and client) and the `details` field
+  in authentication error responses.
+- **Unified error handling**: all API routes now use the logger/
+  sanitizeError/RateLimitError regime with per-route rate limits
+  (borrowing and notification routes previously had none).
+
+### 🔄 Borrowing Lifecycle (completed)
+
+- Borrowers propose an expected return date on temporary loan requests
+  (validated: temporary-only, must be in the future); approvers can
+  override it, otherwise the proposal is inherited by the loan.
+- Duplicate pending requests for the same asset are rejected with 409.
+- Request approval is atomic — a double submit can no longer create two
+  loans.
+- `audit_logs` now records request creation, approve/reject decisions,
+  and returns (with a computed overdue flag) — the table existed but was
+  never written to before.
+- Active Loans panel shows an Expected Return column with overdue
+  highlighting; pending requests show the proposed date.
+- Admin permanent transfers keep `assets.collegeId` in sync when moving
+  an asset to another college.
+
+### 🧹 Frontend Deduplication
+
+- Single source of truth for category/status label & icon maps
+  (`src/lib/assets.ts`) — was duplicated across three components.
+- Shared `AppHeader` component and `useSession` hook replace three copies
+  of the page header and session-fetch logic.
+- Asset filtering is derived state (`useMemo`) instead of a mirrored
+  `filteredAssets` state array.
+- Net ~400 lines removed.
+
+### 📚 Documentation
+
+- Removed redundant docs: DEPLOY_NOW, QUICK_DEPLOY (duplicates of
+  DEPLOYMENT.md), SECURITY_SUMMARY (duplicate of SECURITY.md),
+  MIGRATION_GUIDE (v1→v2 upgrade that predates this repo's history), and
+  GETTING_STARTED (duplicate of README Quick Start).
+- README now documents all API endpoints including borrowing and
+  notifications.
+
 ## [2.0.0] - 2024 - RBAC Release
 
 ### 🎉 Major Features Added
@@ -151,8 +289,8 @@ All notable changes to the Lab Asset Management System.
 ### 🔄 Migration Path
 
 Existing v1.0 users must:
-1. Run database migration (see MIGRATION_GUIDE.md)
-2. Create user accounts
+1. Run migrations to apply the schema changes (`npm run db:migrate`)
+2. Create user accounts via the admin **Users** page (or `npm run seed` for demo data)
 3. Assign existing assets to labs
 4. Update API clients to include authentication
 
@@ -177,18 +315,15 @@ Existing v1.0 users must:
 
 ## Upgrade Instructions
 
-### From v1.0 to v2.0
-
-See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for complete upgrade instructions.
+### From v1.0 to v2.x
 
 **Key Steps:**
 1. Backup database
 2. Pull latest code
 3. Add JWT_SECRET to .env
-4. Run schema migration
-5. Seed initial data
-6. Create user accounts
-7. Test thoroughly
+4. Run `npm run db:migrate`
+5. Seed initial data (or create accounts on the admin Users page)
+6. Test thoroughly
 
 ### Environment Variables
 
@@ -220,10 +355,9 @@ NODE_ENV=development            # NEW
 
 ### v3.0 (Future)
 - [ ] Mobile app
-- [ ] Asset checkout system
-- [ ] Approval workflows
 - [ ] Advanced analytics
 - [ ] SSO integration with MAHE
+- [ ] Overdue loan reminders (scheduled jobs)
 
 ---
 

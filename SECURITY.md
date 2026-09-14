@@ -3,22 +3,39 @@
 ## ✅ Security Measures Implemented
 
 ### 1. Input Validation & Sanitization
-- **Server-side validation** of all inputs using Zod-style validators
+- **Server-side validation** of all inputs using custom validators (`src/lib/validation.ts`)
 - **String sanitization** with max length limits
 - **Type validation** for enums (status, category)
 - **Date validation** with business logic checks
-- **Cross-field validation** (e.g., warranty after purchase date)
+- **Cross-field validation** (e.g., warranty after purchase date, lab-belongs-to-college)
 
 ### 2. Rate Limiting
 - **GET requests**: 60 requests/minute per IP
 - **POST/PUT requests**: 20 requests/minute per IP
 - **DELETE requests**: 10 requests/minute per IP
+- **Login**: per-account throttle (5 attempts / 15 minutes) on top of the per-IP limit
 - Returns `429 Too Many Requests` with `Retry-After` header
+- **Store**: Redis when `REDIS_URL` is set (shared across instances), in-memory
+  otherwise; the limiter degrades to memory if Redis is unreachable
+- **Spoof-proofing**: `X-Forwarded-For` is honored only when `TRUST_PROXY=true`
+  (behind a proxy that overwrites it); otherwise all direct clients share one
+  bucket, so a spoofed IP can never escape throttling
 
-### 3. Authentication (Optional)
-- **API Key authentication** ready to enable
-- Currently disabled for ease of use (development mode)
-- To enable: Set `API_KEY` environment variable and uncomment validation in routes
+### 3. Authentication & Authorization
+- **JWT session authentication** (jose) stored in HTTP-only cookies
+- **bcrypt password hashing** (cost factor 12)
+- **Role-based access control**: admin, main_technician, technician
+- **College isolation**: non-admin users are locked to their institution's data
+- **Sessions expire after 7 days**; the cookie is `secure` when `NODE_ENV=production`
+- **DB-backed session validation**: every request checks the account is still active and
+  matches its `sessionVersion`, so disabling an account or resetting a password revokes
+  existing sessions immediately (no waiting for token expiry)
+- **Optional Keycloak OIDC SSO** (`AUTH_PROVIDER=keycloak`): full authorization-code flow
+  with PKCE, state + nonce validation, and ID-token signature verification against the
+  realm's remote JWKS. Keycloak authenticates only — role, college, lab and active state
+  stay authoritative in the local database, under admin control
+- **Fail-fast secret guard**: production startup throws unless `JWT_SECRET` is set and
+  ≥ 32 chars (a missing secret can never silently fall back to a known default)
 
 ### 4. Secure Logging
 - **No sensitive data** logged in production
@@ -45,24 +62,19 @@
 
 ### Critical (Must Do):
 
-1. **Enable Authentication**
-   ```typescript
-   // Uncomment in src/app/api/assets/route.ts and [id]/route.ts
-   validateApiKey(request);
-   ```
-
-2. **Set API Key**
+1. **Set a Strong JWT_SECRET**
    ```bash
    # Add to .env or environment variables
-   API_KEY=your-secure-random-key-here
+   JWT_SECRET=$(openssl rand -base64 32)
    ```
+   Authentication is built in (JWT sessions, HTTP-only cookies). The code falls back to a known default in development — production must override it.
 
 3. **Use HTTPS Only**
    - Set `secure` cookies
    - Enable HSTS headers
    - Force HTTPS redirects
 
-4. **Configure CORS**
+4. **Configure CORS** (only if the API is consumed cross-origin)
    ```typescript
    // next.config.ts
    headers: async () => [{
@@ -73,27 +85,27 @@
    }],
    ```
 
-5. **Add CSRF Protection**
-   - Implement CSRF tokens for state-changing operations
-   - Use SameSite cookies
-   - Consider using Next.js middleware
+5. **Set TRUST_PROXY correctly**
+   - Behind Vercel/nginx/a load balancer: `TRUST_PROXY=true` so per-IP limits
+     use the real client IP from `X-Forwarded-For`
+   - Directly reachable: leave it unset — the header is spoofable and is ignored
 
 ### Highly Recommended:
 
-6. **Implement Proper Authentication**
-   - Use NextAuth.js, Auth0, or similar
-   - Add user roles and permissions
-   - Implement session management
+6. **Review Authentication**
+   - JWT session auth ships built in; review role assignments and secret rotation
+   - Consider adding multi-factor authentication for admin accounts
 
-7. **Upgrade Rate Limiting**
-   - Replace in-memory store with Redis
-   - Add distributed rate limiting for multiple servers
-   - Implement different tiers for authenticated users
+7. **Scale Rate Limiting**
+   - Set `REDIS_URL` to share rate-limit state across instances (built in —
+     see `src/lib/rateLimit.ts`)
+   - Implement different tiers for authenticated users if needed
 
-8. **Add Audit Logging**
-   - Log all create/update/delete operations
-   - Track who made changes and when
-   - Store in separate audit table
+8. **Audit Logging**
+   - The borrowing lifecycle (requests, approvals, returns), user administration,
+     and asset create/update/delete (field-level diffs, delete snapshots) all
+     write to `audit_logs` via `src/lib/audit.ts`
+   - Consider adding lab create/update/delete entries too
 
 9. **Database Security**
    - Use connection pooling
@@ -101,27 +113,16 @@
    - Encrypt sensitive data at rest
    - Regular backups with encryption
 
-10. **Request Size Limits**
-    ```typescript
-    // next.config.ts
-    experimental: {
-      bodySizeLimit: '1mb',
-    }
-    ```
+10. **Request Size Limits (built in)**
+    - `src/middleware.ts` rejects API bodies over `MAX_REQUEST_SIZE` (default 1mb)
+      with 413 before handlers parse them
+    - Server Action bodies are capped by `bodySizeLimit` in `next.config.ts`
 
-11. **Add CSP Headers**
-    ```typescript
-    // next.config.ts
-    headers: async () => [{
-      source: '/:path*',
-      headers: [
-        {
-          key: 'Content-Security-Policy',
-          value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline';"
-        },
-      ],
-    }],
-    ```
+11. **Security Headers (built in)**
+    - `next.config.ts` sends CSP, HSTS, `X-Frame-Options`, `nosniff`,
+      `Referrer-Policy`, and `Permissions-Policy` on every response
+    - The CSP allows no third-party script origins; adjust in one place if a
+      integration ever needs one
 
 12. **Implement Monitoring**
     - Set up error tracking (Sentry, Rollbar)
@@ -151,7 +152,13 @@
 DATABASE_URL=postgresql://user:password@host:port/db?sslmode=require
 
 # Authentication
-API_KEY=your-secure-random-key-minimum-32-chars
+JWT_SECRET=your-secure-random-key-minimum-32-chars
+
+# Optional: Keycloak SSO (defaults to local password login)
+# AUTH_PROVIDER=keycloak
+# KEYCLOAK_URL=https://auth.example.com/realms/your-realm
+# KEYCLOAK_CLIENT_ID=lab-asset-app
+# KEYCLOAK_CLIENT_SECRET=your-client-secret
 
 # Node Environment
 NODE_ENV=production
@@ -161,7 +168,7 @@ LOG_LEVEL=error
 ALLOWED_ORIGINS=https://yourdomain.com
 ```
 
-### Generate Secure API Key:
+### Generate a Secure JWT Secret:
 ```bash
 # Linux/Mac
 openssl rand -base64 32
@@ -172,48 +179,40 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ## 🚨 Known Limitations (Current Implementation)
 
-1. **In-Memory Rate Limiting**
-   - Resets on server restart
-   - Not suitable for multi-instance deployments
-   - **Solution**: Use Redis or similar
+1. **In-Memory Rate Limiting by Default**
+   - Without `REDIS_URL` the store resets on server restart and is not shared
+     across instances
+   - **Solution**: Set `REDIS_URL` for multi-instance deployments (built in)
 
-2. **No User Authentication**
-   - Anyone with API access can modify data
-   - **Solution**: Implement NextAuth.js or similar
+2. **Lab CRUD operations are not audit-logged**
+   - Asset create/update/delete, the borrowing lifecycle, and user
+     administration all write to `audit_logs`; lab mutations do not yet
 
-3. **No Audit Trail**
-   - No record of who changed what
-   - **Solution**: Add audit log table
+3. **Same-origin CSRF model**
+   - State-changing routes reject cross-origin requests via Origin/Referer
+     validation (`src/lib/csrf.ts`) rather than per-form tokens; clients that
+     send neither header (non-browser tools) are not CSRF-able but also not
+     token-checked
 
-4. **Client-Side Filtering**
-   - Main list does client-side filtering after fetching all
-   - **Solution**: Move filtering to server API calls
-
-5. **No File Upload Validation**
+4. **No File Upload Validation**
    - If you add file uploads, validate file types and sizes
    - **Solution**: Use file upload libraries with validation
-
-6. **No Field-Level Permissions**
-   - All fields editable by anyone who can edit
-   - **Solution**: Implement role-based access control
 
 ## 📋 Security Checklist
 
 Before deploying to production:
 
-- [ ] Set `API_KEY` environment variable
-- [ ] Enable API key validation in routes
+- [ ] Set a strong `JWT_SECRET` environment variable
+- [ ] Confirm session cookies are `secure` (NODE_ENV=production)
 - [ ] Configure HTTPS/SSL certificates
-- [ ] Set up Redis for rate limiting
-- [ ] Implement proper authentication (NextAuth.js)
-- [ ] Add CORS configuration
-- [ ] Enable CSRF protection
+- [ ] Set `REDIS_URL` (multi-instance) and `TRUST_PROXY=true` (behind a proxy)
+- [ ] Add CORS configuration if consumed cross-origin
+- [ ] Set `ALLOWED_ORIGINS` if the public origin differs from the internal host
 - [ ] Set up error monitoring (Sentry)
-- [ ] Configure CSP headers
+- [ ] Verify security headers are present (`curl -I` your deployed URL)
 - [ ] Enable database SSL connections
 - [ ] Set up automated backups
 - [ ] Review and update dependencies
-- [ ] Set up security headers (HSTS, X-Frame-Options, etc.)
 - [ ] Implement logging and monitoring
 - [ ] Create incident response plan
 - [ ] Set up rate limit alerting
@@ -239,6 +238,10 @@ curl "http://localhost:3000/api/assets?search='; DROP TABLE assets; --"
 
 ### Automated Security Scanning:
 ```bash
+# 67 automated tests (Vitest): session handling, tenant isolation,
+# login throttling, and the full borrowing lifecycle
+npm test
+
 # Use npm audit
 npm audit
 

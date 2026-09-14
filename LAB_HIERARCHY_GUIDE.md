@@ -191,10 +191,11 @@ WHERE email IN (
 );
 ```
 
-### Method 2: Future Enhancement
-- User management UI (coming soon)
-- Admin panel to assign users to labs
-- Drag-and-drop team organization
+### Method 2: User Management UI (Implemented)
+- Admins assign users to labs on the **Users** page (`/users`) — create accounts,
+  set the default lab, or move users between labs
+- Changes take effect immediately (sessions are re-validated against the
+  database on every request)
 
 ## 📈 Asset Management Per Lab
 

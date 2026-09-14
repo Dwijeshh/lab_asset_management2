@@ -3,56 +3,41 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LabManagement from '@/components/LabManagement';
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: 'admin' | 'main_technician' | 'technician';
-  collegeId: number;
-  labId: number | null;
-}
-
-interface Lab {
-  id: number;
-  name: string;
-  code: string;
-  department?: string;
-  building?: string;
-  floor?: string;
-  roomNumber?: string;
-  capacity?: number;
-  isActive: boolean;
-}
+import AppHeader from '@/components/AppHeader';
+import { logout, useSession, type College, type Lab } from '@/lib/useSession';
 
 export default function LabsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const user = useSession();
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string>('all');
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  const fetchUser = async () => {
+  const fetchColleges = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/colleges', {
         credentials: 'include'
       });
-      if (response.status === 401) {
-        router.push('/login');
-        return;
+      if (response.ok) {
+        const data = await response.json();
+        setColleges(data.data || []);
       }
-      const data = await response.json();
-      setUser(data.user);
     } catch (error) {
-      console.error('Error fetching user:', error);
-      router.push('/login');
+      console.error('Error fetching colleges:', error);
     }
   };
 
-  const fetchLabs = async () => {
+  const fetchLabs = async (collegeId?: string) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/labs', {
+      const targetCollege = collegeId !== undefined ? collegeId : selectedCollegeId;
+      const url = targetCollege && targetCollege !== 'all'
+        ? `/api/labs?collegeId=${targetCollege}`
+        : '/api/labs';
+
+      const response = await fetch(url, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -66,19 +51,22 @@ export default function LabsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchUser();
-    fetchLabs();
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
+  const handleCollegeChange = (collegeId: string) => {
+    setSelectedCollegeId(collegeId);
+    fetchLabs(collegeId);
   };
+
+  useEffect(() => {
+    const initData = async () => {
+      if (!user) return;
+      await fetchColleges();
+      const initialCollege = user.role === 'admin' ? 'all' : user.collegeId.toString();
+      setSelectedCollegeId(initialCollege);
+      await fetchLabs(initialCollege);
+    };
+    initData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const canCreateLabs = user && (user.role === 'admin' || user.role === 'main_technician');
 
@@ -94,71 +82,59 @@ export default function LabsPage() {
   }
 
   const roleColors = {
-    admin: 'bg-purple-100 text-purple-800',
-    main_technician: 'bg-blue-100 text-blue-800',
-    technician: 'bg-green-100 text-green-800',
+    admin: 'bg-purple-100 text-purple-800 border-purple-200',
+    main_technician: 'bg-blue-100 text-blue-800 border-blue-200',
+    technician: 'bg-green-100 text-green-800 border-green-200',
   };
 
   const roleLabels = {
-    admin: 'Administrator',
-    main_technician: 'Main Technician',
-    technician: 'Technician',
+    admin: 'System Administrator',
+    main_technician: 'Main Technician (Head)',
+    technician: 'Lab Technician',
   };
+
+  const currentCollege = colleges.find(c => c.id.toString() === selectedCollegeId);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8 flex justify-between items-start">
-          <div className="flex items-start gap-4">
-            <img
-              src="/logo.jpg"
-              alt="Organization Logo"
-              className="h-14 w-auto object-contain rounded-lg border border-gray-200 bg-white p-1 shadow-sm mt-1"
-            />
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <button
-                  onClick={() => router.push('/')}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                >
-                  ← Back to Dashboard
-                </button>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                Laboratory Management
-              </h1>
-              <p className="mt-1 text-gray-600 font-medium">Manage and view all laboratory spaces</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-sm text-gray-600">{user.name}</span>
-              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${roleColors[user.role]}`}>
-                {roleLabels[user.role]}
-              </span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              Sign out →
-            </button>
-          </div>
-        </div>
+        <AppHeader
+          user={user}
+          colleges={colleges}
+          selectedCollegeId={selectedCollegeId}
+          onCollegeChange={handleCollegeChange}
+          backLink={{ label: 'Back to Main Dashboard', href: '/' }}
+          title="Laboratory Management"
+          subtitle="Manage and monitor all departmental laboratories"
+        />
 
         {/* Action Bar */}
-        {canCreateLabs && (
-          <div className="mb-6">
+        <div className="mb-6 flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Scope:
+            </span>
+            <span className="text-sm font-semibold text-slate-800 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs">
+              {selectedCollegeId === 'all'
+                ? '🌐 All MAHE Institutions'
+                : `🏛️ ${currentCollege?.name || 'Selected Institution'}`}
+            </span>
+            <span className="text-xs text-slate-500 font-medium ml-2">
+              ({labs.length} laboratories found)
+            </span>
+          </div>
+
+          {canCreateLabs && (
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
             >
               <span className="text-xl">+</span>
               Create New Lab
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Labs Grid */}
         {loading ? (
@@ -167,16 +143,20 @@ export default function LabsPage() {
             <p className="mt-4 text-gray-600">Loading labs...</p>
           </div>
         ) : labs.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
             <div className="text-6xl mb-4">🏭</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No labs found</h3>
-            <p className="text-gray-600 mb-4">Get started by creating your first laboratory.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No laboratories found</h3>
+            <p className="text-gray-600 mb-4">
+              {selectedCollegeId === 'all'
+                ? 'No laboratories registered yet in the system.'
+                : `No laboratories found for ${currentCollege?.name || 'this institution'}.`}
+            </p>
             {canCreateLabs && (
               <button
                 onClick={() => setShowForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
               >
-                Create Lab
+                Create First Lab
               </button>
             )}
           </div>
@@ -186,10 +166,12 @@ export default function LabsPage() {
               <div
                 key={lab.id}
                 onClick={() => router.push(`/labs/${lab.id}`)}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all cursor-pointer hover:border-blue-300 group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="text-3xl">🔬</div>
+                  <div className="text-3xl p-2 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+                    🔬
+                  </div>
                   <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                     lab.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
@@ -197,18 +179,20 @@ export default function LabsPage() {
                   </span>
                 </div>
                 
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{lab.name}</h3>
-                <p className="text-sm text-gray-500 mb-3">Code: {lab.code}</p>
+                <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
+                  {lab.name}
+                </h3>
+                <p className="font-mono text-xs text-blue-700 font-semibold mb-3">Code: {lab.code}</p>
                 
                 {lab.department && (
                   <div className="mb-3">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">
                       {lab.department}
                     </span>
                   </div>
                 )}
                 
-                <div className="space-y-1 text-sm text-gray-600">
+                <div className="space-y-1.5 text-sm text-gray-600 mt-2">
                   {lab.building && (
                     <div className="flex items-center gap-2">
                       <span>📍</span>
@@ -227,16 +211,11 @@ export default function LabsPage() {
                   )}
                 </div>
                 
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/labs/${lab.id}`);
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    View Dashboard →
-                  </button>
+                <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center">
+                  <span className="text-xs font-medium text-gray-500">Dedicated Dashboard</span>
+                  <span className="text-sm font-semibold text-blue-600 group-hover:translate-x-1 transition-transform inline-block">
+                    Open Lab →
+                  </span>
                 </div>
               </div>
             ))}
@@ -245,13 +224,16 @@ export default function LabsPage() {
 
         {/* Create Lab Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
               <LabManagement
                 labs={labs}
+                colleges={colleges}
+                userRole={user.role}
+                defaultCollegeId={selectedCollegeId}
                 onClose={() => setShowForm(false)}
                 onSuccess={() => {
-                  fetchLabs();
+                  fetchLabs(selectedCollegeId);
                   setShowForm(false);
                 }}
               />

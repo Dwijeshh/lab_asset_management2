@@ -16,10 +16,10 @@
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │              Security Middleware                      │   │
-│  │  • Rate Limiting (60/20/10 req/min)                  │   │
-│  │  • Input Validation & Sanitization                   │   │
-│  │  • API Key Authentication (optional)                 │   │
-│  │  • Error Sanitization                                │   │
+│  │  • Rate Limiting (60/20/10 req/min)                   │   │
+│  │  • Input Validation & Sanitization                    │   │
+│  │  • JWT Session Authentication (required)              │   │
+│  │  • Error Sanitization                                 │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                             │                                │
 │                             ▼                                │
@@ -71,22 +71,24 @@
 │  • WAF (Web Application Firewall)                           │
 └─────────────────────────────────────────────────────────────┘
                              ▼
-┌─────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────┐
 │ Layer 2: Authentication & Authorization                      │
-│  ✅ Implemented but ⚠️ DISABLED by default                   │
-│  • API Key authentication (validateApiKey)                   │
-│  • Ready to enable (just uncomment)                          │
-│  • Supports Bearer token format                              │
-└─────────────────────────────────────────────────────────────┘
+│  ✅ Fully implemented and enabled                             │
+│  • JWT sessions in HTTP-only cookies (jose, bcryptjs)        │
+│  • Roles: admin, main_technician, technician                 │
+│  • College isolation enforced per role                       │
+└──────────────────────────────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Layer 3: Rate Limiting                                       │
+│ Layer 3: Rate Limiting & Body Size                           │
 │  ✅ Fully implemented                                        │
 │  • GET: 60 requests/minute per IP                           │
 │  • POST/PUT: 20 requests/minute per IP                      │
 │  • DELETE: 10 requests/minute per IP                        │
+│  • Login: 5/15min per account on top of per-IP limits       │
 │  • Returns 429 with Retry-After header                      │
-│  ⚠️ In-memory (upgrade to Redis for multi-instance)         │
+│  • Redis store when REDIS_URL is set, memory otherwise      │
+│  • API bodies capped (413 over MAX_REQUEST_SIZE, 1mb)       │
 └─────────────────────────────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -140,10 +142,10 @@
        ├─> ✅ Pass: Continue
        └─> ❌ Fail: Return 429
 
-3. Authentication check (if enabled)
-   └─> API key validation
-       ├─> ✅ Valid: Continue
-       └─> ❌ Invalid: Return 401
+3. JWT session check
+   └─> Verify session cookie, load user + role
+       ├─> ✅ Authenticated: Continue
+       └─> ❌ Not logged in: Return 401
 
 4. Input validation
    └─> validateAssetInput(body)
@@ -167,36 +169,36 @@
 ## Current Security Status
 
 ### ✅ Secure (Implemented)
+- JWT session authentication (HTTP-only cookies, bcrypt passwords)
+- Multi-tenant college isolation (single policy owner in auth-jwt.ts)
 - Input validation & sanitization
-- Rate limiting (basic)
+- Rate limiting (per-route; Redis when REDIS_URL is set)
+- CSRF protection (same-origin validation on all state-changing routes)
+- Security headers (CSP, HSTS, X-Frame-Options, nosniff)
+- Request body size limit (middleware)
 - SQL injection protection
 - XSS protection
-- Error handling
+- Error sanitization (no internal errors reach clients)
+- Audit logging (borrowing lifecycle, user administration, asset CRUD with field-level diffs)
 - Secure logging
-- Pagination
-- ID validation
-
-### ⚠️ Ready but Disabled (Development Mode)
-- API key authentication
-  - Code: ✅ Complete
-  - Status: ❌ Commented out
-  - To enable: Uncomment `validateApiKey(request)` in API routes
+- Pagination & ID validation
+- Optional Keycloak OIDC SSO (PKCE + remote-JWKS verification)
+- Admin user management with immediate session revocation
+- Per-account login throttling (on top of per-IP limits)
+- Committed database migrations with drift detection
 
 ### ❌ Not Configured (Requires Setup)
 - HTTPS/SSL (platform-dependent)
-- Security headers (CSP, HSTS, etc.)
-- CORS policy
-- CSRF protection
-- Audit logging
-- Redis-backed rate limiting
-- User authentication (NextAuth.js)
+- CORS policy (only if the API is consumed cross-origin)
+- Redis store (set REDIS_URL for multi-instance)
 
 ## Deployment Models
 
 ### Option A: Development (Current)
 ```
 ✅ Localhost HTTP
-✅ No authentication
+✅ JWT session auth
+✅ College isolation enforced
 ✅ Basic security features
 ❌ Not for public access
 ```
@@ -204,7 +206,8 @@
 ### Option B: Internal Lab (Minimum Security)
 ```
 ✅ HTTPS with self-signed cert
-✅ API key authentication enabled
+✅ JWT session authentication (built in)
+✅ CSRF protection + security headers (built in)
 ✅ Behind firewall
 ✅ All security features active
 ⚠️ Single server instance
@@ -213,10 +216,9 @@
 ### Option C: Production (Full Security)
 ```
 ✅ HTTPS with valid certificate
-✅ User authentication (NextAuth.js)
-✅ Redis-backed rate limiting
-✅ Security headers configured
-✅ CORS configured
+✅ JWT session authentication (built in)
+⚠️ Redis-backed rate limiting (set REDIS_URL for multi-instance)
+⚠️ CORS configured (ALLOWED_ORIGINS, cross-origin consumers only)
 ✅ Audit logging
 ✅ Monitoring & alerting
 ✅ Multi-instance deployment
@@ -234,15 +236,17 @@
 - **Runtime**: Node.js 18+
 - **Framework**: Next.js API Routes
 - **Validation**: Custom validators
-- **Authentication**: API Key (optional)
+- **Authentication**: JWT sessions (jose, bcryptjs); optional Keycloak OIDC SSO
 
 ### Database
 - **Database**: PostgreSQL 14+
 - **ORM**: Drizzle ORM 0.45
-- **Migrations**: Drizzle Kit
+- **Migrations**: Committed Drizzle Kit migrations (idempotent baseline)
 
 ### Security
-- **Rate Limiting**: In-memory (upgradable to Redis)
+- **Rate Limiting**: Redis store (`REDIS_URL`) with in-memory fallback
+- **CSRF**: Same-origin validation (`src/lib/csrf.ts`) on mutating routes
+- **Headers**: CSP/HSTS/frame protection in `next.config.ts`
 - **Input Validation**: Custom validators
 - **SQL Protection**: Drizzle ORM parameterization
 - **Error Handling**: Custom error classes
@@ -253,35 +257,59 @@
 src/
 ├── app/
 │   ├── api/
-│   │   ├── assets/
-│   │   │   ├── route.ts          (List & Create - secured ✅)
-│   │   │   └── [id]/
-│   │   │       └── route.ts      (Get, Update, Delete - secured ✅)
-│   │   └── health/
-│   │       └── route.ts          (Health check)
-│   ├── page.tsx                  (Main UI)
+│   │   ├── auth/                 (login, callback, logout, me, change-password)
+│   │   ├── assets/               (list/create + [id] get/update/delete)
+│   │   ├── labs/                 (list/create + [id] + [id]/assets)
+│   │   ├── colleges/             (list)
+│   │   ├── users/                (admin user mgmt + [id] password reset)
+│   │   ├── asset-requests/       (borrow requests + [id] approve/reject)
+│   │   ├── asset-loans/          (loan list + [id] return)
+│   │   ├── notifications/        (list, mark read, read all)
+│   │   └── health/               (health check)
+│   ├── page.tsx                  (Dashboard)
+│   ├── labs/                     (Lab list + lab detail pages)
+│   ├── login/                    (Login page)
+│   ├── users/                    (Admin user management page)
 │   ├── layout.tsx
 │   └── globals.css
 ├── components/
+│   ├── AppHeader.tsx             (Shared header + college switcher)
 │   ├── AssetForm.tsx             (Create/Edit modal)
 │   ├── AssetList.tsx             (Data table)
 │   ├── SearchBar.tsx             (Search & filters)
-│   └── StatsCards.tsx            (Dashboard stats)
+│   ├── StatsCards.tsx            (Dashboard stats)
+│   ├── BorrowRequestModal.tsx    (Borrow request + return date)
+│   ├── PendingRequestsPanel.tsx  (Approve/reject queue)
+│   ├── ActiveLoansPanel.tsx      (Loans + expected return)
+│   ├── NotificationBell.tsx      (Notification bell)
+│   └── CollegeSelector.tsx       (College switcher)
 ├── db/
 │   ├── index.ts                  (DB connection)
 │   └── schema.ts                 (Database schema)
+├── middleware.ts                 (API body size limit → 413)
 └── lib/
     ├── validation.ts             (Input validation ✅)
-    ├── rateLimit.ts              (Rate limiting ✅)
-    ├── auth.ts                   (Authentication ⚠️)
+    ├── rateLimit.ts              (Rate limiting: Redis/memory ✅)
+    ├── csrf.ts                   (Same-origin CSRF guard ✅)
+    ├── audit.ts                  (Audit-trail helper ✅)
+    ├── auth-jwt.ts               (JWT sessions + college scoping ✅)
+    ├── keycloak.ts               (Keycloak OIDC client ✅)
+    ├── assets.ts                 (Shared category/status metadata ✅)
+    ├── useSession.ts             (Client session hook ✅)
     └── logger.ts                 (Secure logging ✅)
 
+tests/                             (Vitest: unit + API integration suites)
+drizzle/                           (Committed SQL migrations + Drizzle journal)
+
 Documentation/
-├── README.md                     (Getting started)
-├── SECURITY.md                   (Complete security analysis)
-├── SECURITY_SUMMARY.md           (Quick reference)
-├── PRODUCTION_CHECKLIST.md       (Deployment guide)
+├── README.md                     (Overview, API reference & testing)
 ├── ARCHITECTURE.md               (This file)
+├── SECURITY.md                   (Complete security analysis)
+├── PRODUCTION_CHECKLIST.md       (Production readiness checklist)
+├── DEPLOYMENT.md                 (Platform deployment guides)
+├── RBAC_GUIDE.md                 (Roles & permissions reference)
+├── LAB_HIERARCHY_GUIDE.md        (Multi-college data model)
+├── CHANGELOG.md                  (Release history)
 └── .env.example                  (Environment template)
 ```
 
@@ -294,6 +322,9 @@ npm run typecheck
 
 # Build validation
 npm run build
+
+# Test suite (unit + API integration: throttling, revocation, isolation)
+npm test
 
 # Security audit
 npm audit
@@ -326,7 +357,7 @@ curl localhost:3000/api/assets/-1
 - Rate limit hits
 
 ### Security Metrics
-- Failed authentication attempts (when enabled)
+- Failed login attempts
 - Rate limit violations
 - Invalid input attempts
 - Database query performance

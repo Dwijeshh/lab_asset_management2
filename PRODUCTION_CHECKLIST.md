@@ -9,7 +9,7 @@ DATABASE_URL=postgresql://user:password@host:port/db?sslmode=require
 NODE_ENV=production
 
 # Security (Highly Recommended)
-API_KEY=<generate-with-openssl-rand-base64-32>
+JWT_SECRET=<generate-with-openssl-rand-base64-32>
 
 # Optional
 LOG_LEVEL=error
@@ -17,15 +17,13 @@ ALLOWED_ORIGINS=https://yourdomain.com
 MAX_REQUEST_SIZE=1mb
 ```
 
-### Code Changes Required for Production
+### Configuration Required for Production
 
-#### 1. Enable API Authentication
-**File: `src/app/api/assets/route.ts` and `src/app/api/assets/[id]/route.ts`**
+#### 1. Set JWT_SECRET
+Authentication is built in (JWT sessions, HTTP-only cookies, bcrypt hashing). Set a strong secret so session tokens can't be forged:
 
-Uncomment these lines:
-```typescript
-// Line ~16 and ~65
-validateApiKey(request);
+```bash
+JWT_SECRET=$(openssl rand -base64 32)
 ```
 
 #### 2. Configure Next.js Security Headers
@@ -77,46 +75,36 @@ const nextConfig = {
 };
 ```
 
-#### 3. Update Frontend for API Authentication
-**File: `src/app/page.tsx` and components**
+#### 3. Rate Limiting: Redis + Proxy Mode
 
-Add API key to requests:
-```typescript
-const response = await fetch('/api/assets', {
-  headers: {
-    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY || ''}`
-  }
-});
-```
+The built-in limiter (`src/lib/rateLimit.ts`) uses the in-memory store by default —
+correct for a single instance, but it resets on restart and is not shared across
+replicas:
 
-**Note**: For client-side auth, you should implement proper session-based auth instead!
+- **Multi-instance deployments**: set `REDIS_URL` — the limiter switches to Redis
+  (INCR/EXPIRE) with no code changes, and falls back to memory if Redis is unreachable.
+- **Behind a proxy** (Vercel, nginx, load balancer): set `TRUST_PROXY=true` so per-IP
+  limits use the real client IP from `X-Forwarded-For`. If the app is directly
+  reachable, leave it unset — the header is client-controlled and would let an
+  attacker rotate IPs to escape throttling.
+- **Body size**: API bodies over `MAX_REQUEST_SIZE` (default 1mb) are rejected with
+  413 in `src/middleware.ts`.
 
-#### 4. Upgrade Rate Limiting to Redis
+#### 4. Authentication Provider (Optional SSO)
 
-**Install Redis client:**
+Local password login is the default and needs no setup. To authenticate against an
+existing identity provider, enable Keycloak SSO:
+
 ```bash
-npm install ioredis
+AUTH_PROVIDER=keycloak
+KEYCLOAK_URL=https://auth.example.com/realms/your-realm
+KEYCLOAK_CLIENT_ID=lab-asset-app
+KEYCLOAK_CLIENT_SECRET=<from-the-realm-clients-page>
 ```
 
-**Create `src/lib/redisRateLimit.ts`:**
-```typescript
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-
-export async function rateLimit(key: string, limit: number, window: number) {
-  const current = await redis.incr(key);
-  
-  if (current === 1) {
-    await redis.expire(key, window);
-  }
-  
-  if (current > limit) {
-    const ttl = await redis.ttl(key);
-    throw new RateLimitError(ttl);
-  }
-}
-```
+Pre-provision accounts on the admin **Users** page — a user's first SSO login links
+their Keycloak identity to the local account. Roles, college scoping and disable/state
+remain controlled in this app, not in Keycloak.
 
 ### Infrastructure Setup
 
@@ -128,12 +116,18 @@ export async function rateLimit(key: string, limit: number, window: number) {
 - [ ] Database firewall configured (whitelist app servers only)
 - [ ] Regular backup testing
 
-#### Redis (for rate limiting)
+#### Redis (for rate limiting — multi-instance deployments only)
 - [ ] Redis 6+ installed
+- [ ] `REDIS_URL` set on every app instance
 - [ ] Password authentication enabled
 - [ ] Persistence configured (AOF or RDB)
 - [ ] SSL/TLS enabled
 - [ ] Firewall configured
+
+#### Reverse proxy (if applicable)
+- [ ] `TRUST_PROXY=true` set on the app
+- [ ] Proxy overwrites `X-Forwarded-For` (Vercel and nginx do by default)
+- [ ] Proxy enforces HTTPS and forwards `X-Forwarded-Proto`
 
 #### Application Server
 - [ ] Node.js 18+ installed
@@ -206,12 +200,11 @@ npm start
 # Backup database first!
 pg_dump -U user -d dbname > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# Push schema
-npx drizzle-kit push
+# Apply committed migrations (see README for the full procedure)
+npm run db:migrate
 
-# Or use migrations
-npx drizzle-kit generate
-npx drizzle-kit migrate
+# Verify no drift between schema.ts and migrations
+npm run db:check
 ```
 
 ### 3. Deploy Application
@@ -256,7 +249,7 @@ CMD ["npm", "start"]
 # Health check
 curl https://yourdomain.com/api/health
 
-# Test GET endpoint
+# Test GET endpoint (expect 401 without a session cookie)
 curl https://yourdomain.com/api/assets
 
 # Test rate limiting
@@ -373,19 +366,13 @@ ab -n 1000 -c 10 https://yourdomain.com/api/assets
 
 ## 📱 Client Configuration
 
-Update frontend to use production API:
+The app authenticates with HTTP-only session cookies — no client token code is needed. If the frontend is ever served from a different origin than the API, allow it via CORS in `next.config.ts`:
 ```typescript
-// src/lib/api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
-export async function fetchAssets() {
-  const response = await fetch(`${API_BASE_URL}/api/assets`, {
-    headers: {
-      'Authorization': `Bearer ${getToken()}`, // From session
-    },
-  });
-  return response.json();
-}
+// next.config.ts
+headers: async () => [{
+  source: '/api/:path*',
+  headers: [{ key: 'Access-Control-Allow-Origin', value: 'https://yourdomain.com' }],
+}],
 ```
 
 ## 🔄 Rollback Plan
@@ -408,12 +395,13 @@ psql -U user -d dbname < backup_YYYYMMDD_HHMMSS.sql
 
 ## 📋 Final Checklist
 
-- [ ] All environment variables set
-- [ ] API authentication enabled
+- [ ] All environment variables set (JWT_SECRET, DATABASE_URL)
+- [ ] `JWT_SECRET` is a strong random value
 - [ ] HTTPS configured and tested
 - [ ] Database backups automated
-- [ ] Redis configured for rate limiting
-- [ ] Security headers configured
+- [ ] `REDIS_URL` set if multi-instance; `TRUST_PROXY=true` if behind a proxy
+- [ ] Security headers verified with `curl -I` (CSP, HSTS, X-Frame-Options,
+      X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
 - [ ] Error tracking setup (Sentry)
 - [ ] Monitoring configured
 - [ ] Log aggregation setup

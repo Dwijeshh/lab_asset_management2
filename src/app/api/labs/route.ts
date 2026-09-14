@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { labs, colleges } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { getSession, canCreateLabs } from '@/lib/auth-jwt';
+import { getSession, canCreateLabs, resolveCollegeFilter, parseCollegeIdParam } from '@/lib/auth-jwt';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
+import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
@@ -18,28 +19,37 @@ export async function GET(request: NextRequest) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
+    await rateLimit(`labs:get:${clientId}`, { windowMs: 60000, maxRequests: 60 });
 
     const { searchParams } = new URL(request.url);
-    const collegeId = searchParams.get('collegeId');
+    const collegeIdParam = searchParams.get('collegeId');
 
-    let query = db
-      .select({
-        lab: labs,
-        college: colleges,
-      })
-      .from(labs)
-      .leftJoin(colleges, eq(labs.collegeId, colleges.id))
-      .orderBy(desc(labs.createdAt));
+    // Single policy owner: admins may filter to one college or see all;
+    // non-admins are strictly locked to their assigned college.
+    let filterCollegeId: number | null;
+    try {
+      filterCollegeId = resolveCollegeFilter(session.user, collegeIdParam);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Invalid collegeId' },
+        { status: 400 }
+      );
+    }
 
-    // Filter by college if specified, or by user's college
-    const filterCollegeId = collegeId ? parseInt(collegeId) : session.user.collegeId;
-    
-    const allLabs = await db
-      .select()
-      .from(labs)
-      .where(eq(labs.collegeId, filterCollegeId))
-      .orderBy(desc(labs.createdAt));
+    let allLabs;
+    if (filterCollegeId !== null) {
+      allLabs = await db
+        .select()
+        .from(labs)
+        .where(eq(labs.collegeId, filterCollegeId))
+        .orderBy(desc(labs.createdAt));
+    } else {
+      // Admin viewing all colleges
+      allLabs = await db
+        .select()
+        .from(labs)
+        .orderBy(desc(labs.createdAt));
+    }
 
     return NextResponse.json({ data: allLabs });
   } catch (error) {
@@ -63,6 +73,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    assertCsrf(request);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      return NextResponse.json(
+        { error: 'Cross-origin request blocked' },
+        { status: 403 }
+      );
+    }
+    throw error;
+  }
+
+  try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -81,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting
     const clientId = getClientIdentifier(request);
-    rateLimit(`labs:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
+    await rateLimit(`labs:post:${clientId}`, { windowMs: 60000, maxRequests: 20 });
 
     const body = await request.json();
 
@@ -93,6 +115,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Single policy owner: non-admins are pinned to their own college;
+    // admins may target a specific one. 'all'/malformed values are rejected.
+    let targetCollegeId = session.user.collegeId;
+    if (session.user.role === 'admin' && body.collegeId) {
+      const parsedCollegeId = parseCollegeIdParam(String(body.collegeId));
+      if (parsedCollegeId === null) {
+        return NextResponse.json(
+          { error: 'Invalid collegeId: specify a single institution' },
+          { status: 400 }
+        );
+      }
+      targetCollegeId = parsedCollegeId;
+    }
+
     const newLab = await db.insert(labs).values({
       name: body.name,
       code: body.code,
@@ -100,7 +136,7 @@ export async function POST(request: NextRequest) {
       building: body.building || null,
       floor: body.floor || null,
       roomNumber: body.roomNumber || null,
-      collegeId: session.user.collegeId, // Use user's college
+      collegeId: targetCollegeId,
       capacity: body.capacity || null,
       isActive: true,
     }).returning();

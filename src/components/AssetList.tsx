@@ -1,73 +1,17 @@
 'use client';
 
-const categoryIcons: Record<string, string> = {
-  cpu: '🖥️',
-  monitor: '🖥️',
-  laptop: '💻',
-  printer: '🖨️',
-  projector: '📽️',
-  server: '🗄️',
-  network_device: '🌐',
-  ups: '🔋',
-  keyboard_mouse: '⌨️',
-  oscilloscope: '📈',
-  function_generator: '〰️',
-  power_supply: '⚡',
-  multimeter: '📟',
-  soldering_station: '🛠️',
-  microcontroller_kit: '🤖',
-  three_d_printer: '🖨️',
-  lathe_machine: '⚙️',
-  milling_machine: '🏭',
-  testing_machine: '🔬',
-  other: '🔧',
-};
-
-const statusColors: Record<string, string> = {
-  available: 'bg-green-100 text-green-800',
-  in_use: 'bg-blue-100 text-blue-800',
-  maintenance: 'bg-yellow-100 text-yellow-800',
-  retired: 'bg-gray-100 text-gray-800',
-};
-
-const statusLabels: Record<string, string> = {
-  available: 'Available',
-  in_use: 'In Use',
-  maintenance: 'Maintenance',
-  retired: 'Retired',
-};
-
-const categoryLabels: Record<string, string> = {
-  cpu: 'CPU / Desktop',
-  monitor: 'Monitor',
-  laptop: 'Laptop',
-  printer: 'Printer',
-  projector: 'Projector',
-  server: 'Server',
-  network_device: 'Network Device',
-  ups: 'UPS',
-  keyboard_mouse: 'Keyboard / Mouse',
-  oscilloscope: 'Oscilloscope (CRO / DSO)',
-  function_generator: 'Function Generator',
-  power_supply: 'DC Power Supply',
-  multimeter: 'Digital Multimeter',
-  soldering_station: 'Soldering Station',
-  microcontroller_kit: 'Microcontroller Kit',
-  three_d_printer: '3D Printer',
-  lathe_machine: 'Lathe Machine',
-  milling_machine: 'Milling / Drilling Machine',
-  testing_machine: 'Material Testing Machine',
-  other: 'Other Engineering Asset',
-};
+import { CATEGORY_ICONS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/lib/assets';
 
 interface AssetListProps {
   assets: any[];
+  currentUser: any;
   onEdit: (asset: any) => void;
   onDelete: (id: number) => void;
+  onRequest: (asset: any) => void;
   canDelete: boolean;
 }
 
-export default function AssetList({ assets, onEdit, onDelete, canDelete }: AssetListProps) {
+export default function AssetList({ assets, currentUser, onEdit, onDelete, onRequest, canDelete }: AssetListProps) {
   if (assets.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
@@ -109,7 +53,7 @@ export default function AssetList({ assets, onEdit, onDelete, canDelete }: Asset
               <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{categoryIcons[asset.category] || '🔧'}</span>
+                    <span className="text-2xl">{CATEGORY_ICONS[asset.category] || '🔧'}</span>
                     <div>
                       <div className="font-medium text-gray-900">{asset.name}</div>
                       {asset.manufacturer && (
@@ -122,15 +66,15 @@ export default function AssetList({ assets, onEdit, onDelete, canDelete }: Asset
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700">
-                    {categoryLabels[asset.category] || asset.category}
+                    {CATEGORY_LABELS[asset.category] || asset.category}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700">{asset.location}</span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[asset.status]}`}>
-                    {statusLabels[asset.status] || asset.status}
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[asset.status]}`}>
+                    {STATUS_LABELS[asset.status] || asset.status}
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -138,12 +82,22 @@ export default function AssetList({ assets, onEdit, onDelete, canDelete }: Asset
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => onEdit(asset)}
-                      className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    >
-                      Edit
-                    </button>
+                    {asset.status === 'available' && currentUser?.labId && asset.labId !== currentUser.labId && (
+                      <button
+                        onClick={() => onRequest(asset)}
+                        className="px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded transition-colors"
+                      >
+                        Request
+                      </button>
+                    )}
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'main_technician' || asset.labId === currentUser?.labId) && (
+                      <button
+                        onClick={() => onEdit(asset)}
+                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
                     {canDelete && (
                       <button
                         onClick={() => onDelete(asset.id)}

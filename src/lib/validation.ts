@@ -28,6 +28,8 @@ const VALID_CATEGORIES = [
   'other'
 ] as const;
 
+// NOTE: values above must stay in sync with ASSET_CATEGORIES in src/lib/assets.ts
+
 export type AssetStatus = typeof VALID_STATUSES[number];
 export type AssetCategory = typeof VALID_CATEGORIES[number];
 
@@ -61,6 +63,34 @@ export class ValidationError extends Error {
 
 export function sanitizeString(input: string, maxLength: number = 255): string {
   return input.trim().slice(0, maxLength);
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Validates an email and returns the trimmed, lower-cased form.
+export function validateEmail(input: string): string {
+  if (!input || typeof input !== 'string') {
+    throw new ValidationError('Email is required');
+  }
+  const email = input.trim().toLowerCase();
+  if (email.length > 255 || !EMAIL_PATTERN.test(email)) {
+    throw new ValidationError('Invalid email address');
+  }
+  return email;
+}
+
+// Password policy: at least 8 characters with a letter and a digit.
+export function validatePassword(input: string): string {
+  if (!input || typeof input !== 'string') {
+    throw new ValidationError('Password is required');
+  }
+  if (input.length < 8) {
+    throw new ValidationError('Password must be at least 8 characters long');
+  }
+  if (!/[A-Za-z]/.test(input) || !/\d/.test(input)) {
+    throw new ValidationError('Password must contain at least one letter and one number');
+  }
+  return input;
 }
 
 export function validateAssetInput(body: any): ValidatedAssetInput {
@@ -143,6 +173,23 @@ export function validateAssetInput(body: any): ValidatedAssetInput {
   }
 
   return validated;
+}
+
+/**
+ * Shared page/limit parsing for list endpoints (asset-requests, asset-loans,
+ * notifications). Same defaults and caps as validateSearchParams: 50 per
+ * page by default, hard cap of 100, page bounded to [1, 10000).
+ */
+export function validatePagination(searchParams: URLSearchParams): {
+  page: number;
+  limit: number;
+} {
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+  return {
+    page: page > 0 && page < 10000 ? page : 1,
+    limit: limit > 0 && limit <= 100 ? limit : 50,
+  };
 }
 
 export function validateSearchParams(searchParams: URLSearchParams): {
