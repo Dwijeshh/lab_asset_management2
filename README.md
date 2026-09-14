@@ -150,7 +150,7 @@ createdb app_db
 echo "DATABASE_URL=postgresql://user:password@localhost:5432/app_db" > .env
 echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
 
-# Push schema
+# Apply migrations
 npm run db:migrate
 
 # Seed with sample data (MAHE colleges, labs, and users)
@@ -219,7 +219,7 @@ npm run build
 # Start production server
 npm start
 
-# Push database schema
+# Apply database migrations
 npm run db:migrate
 
 # Run the test suite

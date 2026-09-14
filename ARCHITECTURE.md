@@ -174,9 +174,13 @@
 - SQL injection protection
 - XSS protection
 - Error sanitization (no internal errors reach clients)
-- Audit logging of borrowing decisions
+- Audit logging (borrowing lifecycle, user administration)
 - Secure logging
 - Pagination & ID validation
+- Optional Keycloak OIDC SSO (PKCE + remote-JWKS verification)
+- Admin user management with immediate session revocation
+- Per-account login throttling (on top of per-IP limits)
+- Committed database migrations with drift detection
 
 ### ❌ Not Configured (Requires Setup)
 - HTTPS/SSL (platform-dependent)
@@ -209,9 +213,9 @@
 ```
 ✅ HTTPS with valid certificate
 ✅ JWT session authentication (built in)
-✅ Redis-backed rate limiting
-✅ Security headers configured
-✅ CORS configured
+⚠️ Redis-backed rate limiting (add for multi-instance)
+⚠️ Security headers (add in next.config.ts)
+⚠️ CORS configured (ALLOWED_ORIGINS)
 ✅ Audit logging
 ✅ Monitoring & alerting
 ✅ Multi-instance deployment
@@ -229,12 +233,12 @@
 - **Runtime**: Node.js 18+
 - **Framework**: Next.js API Routes
 - **Validation**: Custom validators
-- **Authentication**: JWT sessions (jose, bcryptjs)
+- **Authentication**: JWT sessions (jose, bcryptjs); optional Keycloak OIDC SSO
 
 ### Database
 - **Database**: PostgreSQL 14+
 - **ORM**: Drizzle ORM 0.45
-- **Migrations**: Drizzle Kit
+- **Migrations**: Committed Drizzle Kit migrations (idempotent baseline)
 
 ### Security
 - **Rate Limiting**: In-memory (upgradable to Redis)
@@ -248,10 +252,11 @@
 src/
 ├── app/
 │   ├── api/
-│   │   ├── auth/                 (login, logout, me - JWT sessions)
+│   │   ├── auth/                 (login, callback, logout, me, change-password)
 │   │   ├── assets/               (list/create + [id] get/update/delete)
 │   │   ├── labs/                 (list/create + [id] + [id]/assets)
 │   │   ├── colleges/             (list)
+│   │   ├── users/                (admin user mgmt + [id] password reset)
 │   │   ├── asset-requests/       (borrow requests + [id] approve/reject)
 │   │   ├── asset-loans/          (loan list + [id] return)
 │   │   ├── notifications/        (list, mark read, read all)
@@ -259,6 +264,7 @@ src/
 │   ├── page.tsx                  (Dashboard)
 │   ├── labs/                     (Lab list + lab detail pages)
 │   ├── login/                    (Login page)
+│   ├── users/                    (Admin user management page)
 │   ├── layout.tsx
 │   └── globals.css
 ├── components/
@@ -279,15 +285,23 @@ src/
     ├── validation.ts             (Input validation ✅)
     ├── rateLimit.ts              (Rate limiting ✅)
     ├── auth-jwt.ts               (JWT sessions + college scoping ✅)
+    ├── keycloak.ts               (Keycloak OIDC client ✅)
     ├── assets.ts                 (Shared category/status metadata ✅)
     ├── useSession.ts             (Client session hook ✅)
     └── logger.ts                 (Secure logging ✅)
 
+tests/                             (Vitest: unit + API integration suites)
+drizzle/                           (Committed SQL migrations + Drizzle journal)
+
 Documentation/
-├── README.md                     (Overview & API reference)
-├── SECURITY.md                   (Complete security analysis)
-├── PRODUCTION_CHECKLIST.md       (Deployment guide)
+├── README.md                     (Overview, API reference & testing)
 ├── ARCHITECTURE.md               (This file)
+├── SECURITY.md                   (Complete security analysis)
+├── PRODUCTION_CHECKLIST.md       (Production readiness checklist)
+├── DEPLOYMENT.md                 (Platform deployment guides)
+├── RBAC_GUIDE.md                 (Roles & permissions reference)
+├── LAB_HIERARCHY_GUIDE.md        (Multi-college data model)
+├── CHANGELOG.md                  (Release history)
 └── .env.example                  (Environment template)
 ```
 
@@ -300,6 +314,9 @@ npm run typecheck
 
 # Build validation
 npm run build
+
+# Test suite (unit + API integration: throttling, revocation, isolation)
+npm test
 
 # Security audit
 npm audit

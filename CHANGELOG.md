@@ -2,6 +2,33 @@
 
 All notable changes to the Lab Asset Management System.
 
+## [2.3.0] - 2026 - Test Suite & Database Migrations
+
+### 🧪 Automated Testing
+
+- 59-test Vitest suite in two layers:
+  - **Unit** (`tests/unit/`): validation rules, session-token handling, tenant-isolation
+    policy helpers, the rate limiter, and the Keycloak OIDC client helpers.
+  - **API integration** (`tests/api/`): builds and starts the real app on a test port and
+    drives the full HTTP surface — per-IP and per-account login throttling, session
+    revocation on password change/reset, immediate revocation on account disable,
+    cross-college 403s, forged-`collegeId` rejection, and the complete borrowing
+    lifecycle (request → duplicate 409 → approve → return → overdue).
+- Tests create and clean up their own data, so runs are idempotent against a shared
+  database; `TEST_DATABASE_URL` targets a scratch database for full isolation.
+- `npm test` script; CI runs the suite on every push and pull request.
+
+### 🗄️ Committed Database Migrations
+
+- `drizzle-kit push` replaced by committed, versioned migrations (`drizzle/`).
+- `drizzle/0000_baseline.sql` captures the full current schema (8 tables, 7 enums,
+  22 foreign keys) and is written **idempotently**, so it applies cleanly both to fresh
+  databases and to databases that predate migrations.
+- New workflow: `npm run db:generate` (diff schema → SQL), `npm run db:migrate` (apply),
+  `npm run db:check` (detect schema/migration drift). CI runs migrate + check.
+- Rollback procedure documented in README and DEPLOYMENT.md (backup restore; hot-fixes
+  via a corrective migration — never hand-edit an applied migration).
+
 ## [2.2.0] - 2026 - SSO, User Management & Session Control
 
 ### 🔐 Single Sign-On (Keycloak OIDC)
@@ -237,8 +264,8 @@ All notable changes to the Lab Asset Management System.
 ### 🔄 Migration Path
 
 Existing v1.0 users must:
-1. Run `npx drizzle-kit push` to apply the schema changes
-2. Create user accounts (see `npm run seed`)
+1. Run migrations to apply the schema changes (`npm run db:migrate`)
+2. Create user accounts via the admin **Users** page (or `npm run seed` for demo data)
 3. Assign existing assets to labs
 4. Update API clients to include authentication
 
@@ -269,10 +296,9 @@ Existing v1.0 users must:
 1. Backup database
 2. Pull latest code
 3. Add JWT_SECRET to .env
-4. Run `npx drizzle-kit push`
-5. Seed initial data
-6. Create user accounts
-7. Test thoroughly
+4. Run `npm run db:migrate`
+5. Seed initial data (or create accounts on the admin Users page)
+6. Test thoroughly
 
 ### Environment Variables
 

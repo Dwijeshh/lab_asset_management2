@@ -75,32 +75,50 @@ const nextConfig = {
 };
 ```
 
-#### 3. Upgrade Rate Limiting to Redis
+#### 3. Upgrade Rate Limiting to Redis (multi-instance only)
 
-**Install Redis client:**
-```bash
-npm install ioredis
-```
+The built-in rate limiter (`src/lib/rateLimit.ts`) is in-memory: correct for a single
+instance, but it resets on restart and does not share state across replicas. If you
+deploy more than one instance, back it with Redis (`ioredis` is already a dependency):
 
-**Create `src/lib/redisRateLimit.ts`:**
 ```typescript
+// src/lib/rateLimit.ts — swap the Map store for Redis INCR/EXPIRE
 import Redis from 'ioredis';
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 export async function rateLimit(key: string, limit: number, window: number) {
   const current = await redis.incr(key);
-  
+
   if (current === 1) {
     await redis.expire(key, window);
   }
-  
+
   if (current > limit) {
     const ttl = await redis.ttl(key);
     throw new RateLimitError(ttl);
   }
 }
 ```
+
+Set `REDIS_URL` when enabled. Single-instance deployments (Vercel, one container) can
+ship with the in-memory store.
+
+#### 4. Authentication Provider (Optional SSO)
+
+Local password login is the default and needs no setup. To authenticate against an
+existing identity provider, enable Keycloak SSO:
+
+```bash
+AUTH_PROVIDER=keycloak
+KEYCLOAK_URL=https://auth.example.com/realms/your-realm
+KEYCLOAK_CLIENT_ID=lab-asset-app
+KEYCLOAK_CLIENT_SECRET=<from-the-realm-clients-page>
+```
+
+Pre-provision accounts on the admin **Users** page — a user's first SSO login links
+their Keycloak identity to the local account. Roles, college scoping and disable/state
+remain controlled in this app, not in Keycloak.
 
 ### Infrastructure Setup
 
@@ -112,7 +130,7 @@ export async function rateLimit(key: string, limit: number, window: number) {
 - [ ] Database firewall configured (whitelist app servers only)
 - [ ] Regular backup testing
 
-#### Redis (for rate limiting)
+#### Redis (for rate limiting — multi-instance deployments only)
 - [ ] Redis 6+ installed
 - [ ] Password authentication enabled
 - [ ] Persistence configured (AOF or RDB)
@@ -190,12 +208,11 @@ npm start
 # Backup database first!
 pg_dump -U user -d dbname > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# Push schema
-npx drizzle-kit push
+# Apply committed migrations (see README for the full procedure)
+npm run db:migrate
 
-# Or use migrations
-npx drizzle-kit generate
-npx drizzle-kit migrate
+# Verify no drift between schema.ts and migrations
+npm run db:check
 ```
 
 ### 3. Deploy Application

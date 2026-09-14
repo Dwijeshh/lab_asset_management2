@@ -85,9 +85,9 @@ Each asset is:
 ## 🔐 Authentication & Authorization
 
 ### Login Flow
-1. User enters email and password
+1. User enters email and password (or is redirected to Keycloak when `AUTH_PROVIDER=keycloak`)
 2. System validates credentials
-3. JWT token created with user info and role
+3. JWT token created with user info, role and `sessionVersion`
 4. Token stored in HTTP-only cookie
 5. User redirected to dashboard
 
@@ -95,8 +95,11 @@ Each asset is:
 - **Token Type**: JWT (JSON Web Token)
 - **Storage**: HTTP-only secure cookie
 - **Duration**: 7 days
-- **Auto-refresh**: On each request
-- **Logout**: Clears session cookie
+- **Validation**: Every request re-checks the database — the account must still exist,
+  be active, and match its `sessionVersion`, so disabling an account or resetting its
+  password revokes existing sessions immediately
+- **Logout**: Clears session cookie (under SSO, also redirects to the Keycloak
+  end-session URL)
 
 ### Permission Checks
 
@@ -132,8 +135,8 @@ canCreateAssets(role):
 # Install dependencies
 npm install
 
-# Push database schema
-npx drizzle-kit push
+# Apply database migrations
+npm run db:migrate
 
 # Seed with sample data
 npm run seed

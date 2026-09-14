@@ -7,12 +7,13 @@
 - **String sanitization** with max length limits
 - **Type validation** for enums (status, category)
 - **Date validation** with business logic checks
-- **Cross-field validation** (e.g., warranty after purchase date)
+- **Cross-field validation** (e.g., warranty after purchase date, lab-belongs-to-college)
 
 ### 2. Rate Limiting
 - **GET requests**: 60 requests/minute per IP
 - **POST/PUT requests**: 20 requests/minute per IP
 - **DELETE requests**: 10 requests/minute per IP
+- **Login**: per-account throttle (5 attempts / 15 minutes) on top of the per-IP limit
 - Returns `429 Too Many Requests` with `Retry-After` header
 
 ### 3. Authentication & Authorization
@@ -20,7 +21,16 @@
 - **bcrypt password hashing** (cost factor 12)
 - **Role-based access control**: admin, main_technician, technician
 - **College isolation**: non-admin users are locked to their institution's data
-- Sessions expire after 7 days; the cookie is `secure` when `NODE_ENV=production`
+- **Sessions expire after 7 days**; the cookie is `secure` when `NODE_ENV=production`
+- **DB-backed session validation**: every request checks the account is still active and
+  matches its `sessionVersion`, so disabling an account or resetting a password revokes
+  existing sessions immediately (no waiting for token expiry)
+- **Optional Keycloak OIDC SSO** (`AUTH_PROVIDER=keycloak`): full authorization-code flow
+  with PKCE, state + nonce validation, and ID-token signature verification against the
+  realm's remote JWKS. Keycloak authenticates only — role, college, lab and active state
+  stay authoritative in the local database, under admin control
+- **Fail-fast secret guard**: production startup throws unless `JWT_SECRET` is set and
+  ≥ 32 chars (a missing secret can never silently fall back to a known default)
 
 ### 4. Secure Logging
 - **No sensitive data** logged in production
@@ -148,6 +158,12 @@ DATABASE_URL=postgresql://user:password@host:port/db?sslmode=require
 # Authentication
 JWT_SECRET=your-secure-random-key-minimum-32-chars
 
+# Optional: Keycloak SSO (defaults to local password login)
+# AUTH_PROVIDER=keycloak
+# KEYCLOAK_URL=https://auth.example.com/realms/your-realm
+# KEYCLOAK_CLIENT_ID=lab-asset-app
+# KEYCLOAK_CLIENT_SECRET=your-client-secret
+
 # Node Environment
 NODE_ENV=production
 
@@ -172,11 +188,15 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    - Not suitable for multi-instance deployments
    - **Solution**: Use Redis or similar
 
-2. **Client-Side Filtering**
-   - Main list does client-side filtering after fetching all
-   - **Solution**: Move filtering to server API calls
+2. **Asset CRUD operations are not audit-logged**
+   - Only the borrowing lifecycle and user administration write to `audit_logs`
+   - **Solution**: Add audit entries in asset create/update/delete routes
 
-3. **No File Upload Validation**
+3. **No CSRF tokens or security headers**
+   - `sameSite=lax` cookies + JSON-only bodies block practical CSRF; add double-submit
+     tokens and CSP/HSTS headers in `next.config.ts` before public deployment
+
+4. **No File Upload Validation**
    - If you add file uploads, validate file types and sizes
    - **Solution**: Use file upload libraries with validation
 
@@ -187,9 +207,9 @@ Before deploying to production:
 - [ ] Set a strong `JWT_SECRET` environment variable
 - [ ] Confirm session cookies are `secure` (NODE_ENV=production)
 - [ ] Configure HTTPS/SSL certificates
-- [ ] Set up Redis for rate limiting
+- [ ] Set up Redis for rate limiting (required for multi-instance deployments)
 - [ ] Add CORS configuration
-- [ ] Enable CSRF protection
+- [ ] Enable CSRF protection (double-submit cookie) before public exposure
 - [ ] Set up error monitoring (Sentry)
 - [ ] Configure CSP headers
 - [ ] Enable database SSL connections
@@ -221,6 +241,10 @@ curl "http://localhost:3000/api/assets?search='; DROP TABLE assets; --"
 
 ### Automated Security Scanning:
 ```bash
+# 59 automated tests (Vitest): session handling, tenant isolation,
+# login throttling, and the full borrowing lifecycle
+npm test
+
 # Use npm audit
 npm audit
 
