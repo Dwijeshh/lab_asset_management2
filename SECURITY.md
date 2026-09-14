@@ -238,7 +238,7 @@ curl "http://localhost:3000/api/assets?search='; DROP TABLE assets; --"
 
 ### Automated Security Scanning:
 ```bash
-# 64 automated tests (Vitest): session handling, tenant isolation,
+# 67 automated tests (Vitest): session handling, tenant isolation,
 # login throttling, and the full borrowing lifecycle
 npm test
 

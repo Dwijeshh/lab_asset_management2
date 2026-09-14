@@ -1,19 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
 import { assets, assetRequests, users, notifications, auditLogs } from '@/db/schema';
 import { eq, and, desc, or } from 'drizzle-orm';
+import { validatePagination } from '@/lib/validation';
 import { getSession } from '@/lib/auth-jwt';
 import { logger, sanitizeError } from '@/lib/logger';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { assertCsrf, CsrfError } from '@/lib/csrf';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { page, limit } = validatePagination(request.nextUrl.searchParams);
     const user = session.user;
     let requests;
 
@@ -34,7 +36,9 @@ export async function GET(request: Request) {
         .from(assetRequests)
         .leftJoin(assets, eq(assetRequests.assetId, assets.id))
         .leftJoin(users, eq(assetRequests.requesterId, users.id))
-        .orderBy(desc(assetRequests.createdAt));
+        .orderBy(desc(assetRequests.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit);
     } else if (user.role === 'main_technician') {
       requests = await db
         .select({
@@ -58,7 +62,9 @@ export async function GET(request: Request) {
             eq(assetRequests.requesterId, user.id)
           )
         )
-        .orderBy(desc(assetRequests.createdAt));
+        .orderBy(desc(assetRequests.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit);
     } else {
       requests = await db
         .select({
@@ -77,10 +83,15 @@ export async function GET(request: Request) {
         .leftJoin(assets, eq(assetRequests.assetId, assets.id))
         .leftJoin(users, eq(assetRequests.requesterId, users.id))
         .where(eq(assetRequests.requesterId, user.id))
-        .orderBy(desc(assetRequests.createdAt));
+        .orderBy(desc(assetRequests.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit);
     }
 
-    return NextResponse.json({ data: requests });
+    return NextResponse.json({
+      data: requests,
+      pagination: { page, limit },
+    });
   } catch (error) {
     if (error instanceof RateLimitError) {
       return NextResponse.json(

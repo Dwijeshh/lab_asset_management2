@@ -175,6 +175,23 @@ export function validateAssetInput(body: any): ValidatedAssetInput {
   return validated;
 }
 
+/**
+ * Shared page/limit parsing for list endpoints (asset-requests, asset-loans,
+ * notifications). Same defaults and caps as validateSearchParams: 50 per
+ * page by default, hard cap of 100, page bounded to [1, 10000).
+ */
+export function validatePagination(searchParams: URLSearchParams): {
+  page: number;
+  limit: number;
+} {
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+  return {
+    page: page > 0 && page < 10000 ? page : 1,
+    limit: limit > 0 && limit <= 100 ? limit : 50,
+  };
+}
+
 export function validateSearchParams(searchParams: URLSearchParams): {
   search?: string;
   status?: AssetStatus;

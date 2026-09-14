@@ -49,6 +49,10 @@ All notable changes to the Lab Asset Management System.
   before/after diff including lab moves), and delete (full snapshot) now write to
   `audit_logs`; the shared helper never lets an audit failure break the triggering
   operation.
+- **Server-side pagination** on `GET /api/asset-requests`, `/api/asset-loans`, and
+  `/api/notifications` (`page`/`limit`, capped like `/api/assets`), with pagination
+  metadata in each response — these list endpoints previously returned unbounded
+  result sets.
 
 ## [2.2.0] - 2026 - SSO, User Management & Session Control
 

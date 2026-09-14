@@ -116,14 +116,14 @@ All endpoints require session authentication (JWT cookie from `/api/auth/login`)
 - `GET /api/colleges` - Visible institutions (all for admins, own otherwise)
 
 ### Borrowing
-- `GET /api/asset-requests` - Requests (scoped by role)
+- `GET /api/asset-requests` - Requests (scoped by role; query: `page`, `limit`)
 - `POST /api/asset-requests` - Create borrow/transfer request
 - `PUT /api/asset-requests/[id]` - Approve/reject (admin/main technician)
-- `GET /api/asset-loans` - Loans (scoped by role)
+- `GET /api/asset-loans` - Loans (scoped by role; query: `page`, `limit`)
 - `PUT /api/asset-loans/[id]` - Mark returned (admin/main technician)
 
 ### Notifications
-- `GET /api/notifications` - List (query: `unread=true`)
+- `GET /api/notifications` - List (query: `unread=true`, `page`, `limit`)
 - `PUT /api/notifications/[id]/read` - Mark one read
 - `PUT /api/notifications/read-all` - Mark all read
 
