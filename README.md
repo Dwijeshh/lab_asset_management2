@@ -41,7 +41,7 @@ A comprehensive fullstack web application for managing laboratory equipment and 
 - ✅ Create, read, update, and delete lab assets
 - 🔍 Search and filter assets by name, serial number, manufacturer, or location
 - 📊 Real-time statistics dashboard showing total assets, available, in use, and under maintenance
-- 🏷️ Categorize assets (microscopes, centrifuges, incubators, freezers, etc.)
+- 🏷️ Categorize assets (laptops, monitors, printers, oscilloscopes, 3D printers, etc.)
 - 🏭 Lab-specific asset tracking
 
 ### Asset Tracking
@@ -53,7 +53,7 @@ A comprehensive fullstack web application for managing laboratory equipment and 
 ### User Interface
 - 📱 Responsive design that works on desktop, tablet, and mobile
 - 🎨 Clean, modern UI with Tailwind CSS
-- 🔢 Interactive data tables with inline editing
+- 🔢 Interactive data tables with modal-based editing
 - 📈 Visual statistics cards for quick overview
 
 ## Technology Stack
@@ -72,13 +72,18 @@ A comprehensive fullstack web application for managing laboratory equipment and 
 - `manufacturer`: Manufacturer name
 - `model`: Model number
 - `serialNumber`: Serial number
-- `location`: Lab location
+- `collegeId`: Owning college (kept in sync with the asset's lab)
+- `labId`: Home lab (required)
+- `location`: Location within the lab
 - `status`: Current status (enum: available, in_use, maintenance, retired)
 - `purchaseDate`: Date of purchase
 - `warrantyExpiry`: Warranty expiration date
 - `notes`: Additional notes
+- `createdById` / `updatedById`: Who created / last updated the asset
 - `createdAt`: Record creation timestamp
 - `updatedAt`: Last update timestamp
+
+The system also tracks `colleges`, `labs`, `users`, `asset_requests`, `asset_loans`, `notifications`, and `audit_logs`.
 
 ## API Endpoints
 
@@ -258,15 +263,14 @@ This application includes production-ready security features:
 - ✅ **SQL Injection Protection** - Drizzle ORM with parameterized queries
 - ✅ **Secure Logging** - No sensitive data exposed in production logs
 - ✅ **Error Handling** - Safe error messages, no stack traces to clients
-- ⚠️ **Authentication Ready** - API key auth available (disabled by default)
+- ✅ **JWT Session Authentication** - HTTP-only cookies, bcrypt hashing, role + college scoping
 
 ### ⚠️ IMPORTANT: Before Production
 
 **This application is NOT production-ready by default.** See [SECURITY.md](./SECURITY.md) for:
 - Complete security vulnerability assessment
 - Production hardening checklist
-- Required configuration changes
-- Authentication setup guide
+- Required configuration changes (JWT_SECRET, HTTPS, Redis rate limiting)
 
 **See [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) for deployment guide.**
 
