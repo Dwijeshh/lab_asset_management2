@@ -3,7 +3,7 @@
 ## ✅ Security Measures Implemented
 
 ### 1. Input Validation & Sanitization
-- **Server-side validation** of all inputs using Zod-style validators
+- **Server-side validation** of all inputs using custom validators (`src/lib/validation.ts`)
 - **String sanitization** with max length limits
 - **Type validation** for enums (status, category)
 - **Date validation** with business logic checks
@@ -15,10 +15,12 @@
 - **DELETE requests**: 10 requests/minute per IP
 - Returns `429 Too Many Requests` with `Retry-After` header
 
-### 3. Authentication (Optional)
-- **API Key authentication** ready to enable
-- Currently disabled for ease of use (development mode)
-- To enable: Set `API_KEY` environment variable and uncomment validation in routes
+### 3. Authentication & Authorization
+- **JWT session authentication** (jose) stored in HTTP-only cookies
+- **bcrypt password hashing** (cost factor 12)
+- **Role-based access control**: admin, main_technician, technician
+- **College isolation**: non-admin users are locked to their institution's data
+- Sessions expire after 7 days; the cookie is `secure` when `NODE_ENV=production`
 
 ### 4. Secure Logging
 - **No sensitive data** logged in production
@@ -45,17 +47,12 @@
 
 ### Critical (Must Do):
 
-1. **Enable Authentication**
-   ```typescript
-   // Uncomment in src/app/api/assets/route.ts and [id]/route.ts
-   validateApiKey(request);
-   ```
-
-2. **Set API Key**
+1. **Set a Strong JWT_SECRET**
    ```bash
    # Add to .env or environment variables
-   API_KEY=your-secure-random-key-here
+   JWT_SECRET=$(openssl rand -base64 32)
    ```
+   Authentication is built in (JWT sessions, HTTP-only cookies). The code falls back to a known default in development — production must override it.
 
 3. **Use HTTPS Only**
    - Set `secure` cookies
@@ -80,20 +77,18 @@
 
 ### Highly Recommended:
 
-6. **Implement Proper Authentication**
-   - Use NextAuth.js, Auth0, or similar
-   - Add user roles and permissions
-   - Implement session management
+6. **Review Authentication**
+   - JWT session auth ships built in; review role assignments and secret rotation
+   - Consider adding multi-factor authentication for admin accounts
 
 7. **Upgrade Rate Limiting**
    - Replace in-memory store with Redis
    - Add distributed rate limiting for multiple servers
    - Implement different tiers for authenticated users
 
-8. **Add Audit Logging**
-   - Log all create/update/delete operations
-   - Track who made changes and when
-   - Store in separate audit table
+8. **Extend Audit Logging**
+   - The borrowing lifecycle (requests, approvals, returns) is logged to `audit_logs`
+   - Consider logging asset create/update/delete operations too
 
 9. **Database Security**
    - Use connection pooling
@@ -151,7 +146,7 @@
 DATABASE_URL=postgresql://user:password@host:port/db?sslmode=require
 
 # Authentication
-API_KEY=your-secure-random-key-minimum-32-chars
+JWT_SECRET=your-secure-random-key-minimum-32-chars
 
 # Node Environment
 NODE_ENV=production
@@ -161,7 +156,7 @@ LOG_LEVEL=error
 ALLOWED_ORIGINS=https://yourdomain.com
 ```
 
-### Generate Secure API Key:
+### Generate a Secure JWT Secret:
 ```bash
 # Linux/Mac
 openssl rand -base64 32
@@ -177,35 +172,22 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    - Not suitable for multi-instance deployments
    - **Solution**: Use Redis or similar
 
-2. **No User Authentication**
-   - Anyone with API access can modify data
-   - **Solution**: Implement NextAuth.js or similar
-
-3. **No Audit Trail**
-   - No record of who changed what
-   - **Solution**: Add audit log table
-
-4. **Client-Side Filtering**
+2. **Client-Side Filtering**
    - Main list does client-side filtering after fetching all
    - **Solution**: Move filtering to server API calls
 
-5. **No File Upload Validation**
+3. **No File Upload Validation**
    - If you add file uploads, validate file types and sizes
    - **Solution**: Use file upload libraries with validation
-
-6. **No Field-Level Permissions**
-   - All fields editable by anyone who can edit
-   - **Solution**: Implement role-based access control
 
 ## 📋 Security Checklist
 
 Before deploying to production:
 
-- [ ] Set `API_KEY` environment variable
-- [ ] Enable API key validation in routes
+- [ ] Set a strong `JWT_SECRET` environment variable
+- [ ] Confirm session cookies are `secure` (NODE_ENV=production)
 - [ ] Configure HTTPS/SSL certificates
 - [ ] Set up Redis for rate limiting
-- [ ] Implement proper authentication (NextAuth.js)
 - [ ] Add CORS configuration
 - [ ] Enable CSRF protection
 - [ ] Set up error monitoring (Sentry)

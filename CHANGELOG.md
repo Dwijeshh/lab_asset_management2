@@ -2,6 +2,58 @@
 
 All notable changes to the Lab Asset Management System.
 
+## [2.1.0] - 2026 - Security Hardening, Borrowing Lifecycle & Cleanup
+
+### 🔒 Security Fixes
+
+- **Cross-college asset move closed**: asset PUT/POST now validates the
+  TARGET lab's institution; technicians can no longer move assets across
+  colleges, and `assets.collegeId` stays in sync with the lab.
+- **No more internal error leakage**: `sanitizeError` never returns raw
+  error messages (Drizzle embeds full SQL in them); malformed `collegeId`
+  returns 400 instead of a raw database error.
+- **PII scrubbed from logs**: removed email/password-adjacent console
+  logging from the login flow (server and client) and the `details` field
+  in authentication error responses.
+- **Unified error handling**: all API routes now use the logger/
+  sanitizeError/RateLimitError regime with per-route rate limits
+  (borrowing and notification routes previously had none).
+
+### 🔄 Borrowing Lifecycle (completed)
+
+- Borrowers propose an expected return date on temporary loan requests
+  (validated: temporary-only, must be in the future); approvers can
+  override it, otherwise the proposal is inherited by the loan.
+- Duplicate pending requests for the same asset are rejected with 409.
+- Request approval is atomic — a double submit can no longer create two
+  loans.
+- `audit_logs` now records request creation, approve/reject decisions,
+  and returns (with a computed overdue flag) — the table existed but was
+  never written to before.
+- Active Loans panel shows an Expected Return column with overdue
+  highlighting; pending requests show the proposed date.
+- Admin permanent transfers keep `assets.collegeId` in sync when moving
+  an asset to another college.
+
+### 🧹 Frontend Deduplication
+
+- Single source of truth for category/status label & icon maps
+  (`src/lib/assets.ts`) — was duplicated across three components.
+- Shared `AppHeader` component and `useSession` hook replace three copies
+  of the page header and session-fetch logic.
+- Asset filtering is derived state (`useMemo`) instead of a mirrored
+  `filteredAssets` state array.
+- Net ~400 lines removed.
+
+### 📚 Documentation
+
+- Removed redundant docs: DEPLOY_NOW, QUICK_DEPLOY (duplicates of
+  DEPLOYMENT.md), SECURITY_SUMMARY (duplicate of SECURITY.md),
+  MIGRATION_GUIDE (v1→v2 upgrade that predates this repo's history), and
+  GETTING_STARTED (duplicate of README Quick Start).
+- README now documents all API endpoints including borrowing and
+  notifications.
+
 ## [2.0.0] - 2024 - RBAC Release
 
 ### 🎉 Major Features Added
@@ -151,8 +203,8 @@ All notable changes to the Lab Asset Management System.
 ### 🔄 Migration Path
 
 Existing v1.0 users must:
-1. Run database migration (see MIGRATION_GUIDE.md)
-2. Create user accounts
+1. Run `npx drizzle-kit push` to apply the schema changes
+2. Create user accounts (see `npm run seed`)
 3. Assign existing assets to labs
 4. Update API clients to include authentication
 
@@ -177,15 +229,13 @@ Existing v1.0 users must:
 
 ## Upgrade Instructions
 
-### From v1.0 to v2.0
-
-See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for complete upgrade instructions.
+### From v1.0 to v2.x
 
 **Key Steps:**
 1. Backup database
 2. Pull latest code
 3. Add JWT_SECRET to .env
-4. Run schema migration
+4. Run `npx drizzle-kit push`
 5. Seed initial data
 6. Create user accounts
 7. Test thoroughly
@@ -220,10 +270,9 @@ NODE_ENV=development            # NEW
 
 ### v3.0 (Future)
 - [ ] Mobile app
-- [ ] Asset checkout system
-- [ ] Approval workflows
 - [ ] Advanced analytics
 - [ ] SSO integration with MAHE
+- [ ] Overdue loan reminders (scheduled jobs)
 
 ---
 

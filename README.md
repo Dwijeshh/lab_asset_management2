@@ -6,14 +6,12 @@ A comprehensive fullstack web application for managing laboratory equipment and 
 
 ## 🚀 **Ready to Deploy?**
 
-**Quick Deploy:** [DEPLOY_NOW.md](./DEPLOY_NOW.md) - Deploy in 5 minutes to Vercel!
-
 **Choose Your Platform:**
 - ⚡ **Vercel** - Free, 5 minutes
 - 🚂 **Railway** - Database included, 3 minutes  
 - 🎨 **Render** - Free tier available, 10 minutes
 
-[📖 Full Deployment Guide](./DEPLOYMENT.md) | [⚡ Quick Deploy Guide](./QUICK_DEPLOY.md)
+[📖 Full Deployment Guide](./DEPLOYMENT.md)
 
 ## ✨ Key Features
 
@@ -30,6 +28,14 @@ A comprehensive fullstack web application for managing laboratory equipment and 
 - **Lab hierarchy** - One Main Technician per lab with Technicians under them
 - Lab organization by department and location
 - Scalable to entire MAHE network
+
+### 🔄 Asset Borrowing & Transfers
+- Technicians request to borrow (temporary) or permanently receive assets from other labs in their college
+- Proposed return date on requests; approvers can override it
+- Approval creates a loan; returning a loan frees the asset automatically
+- Overdue highlighting on active loans past their expected return date
+- In-app notifications for requests, approvals, rejections, and returns
+- Audit trail of every request, decision, and return
 
 ### 🔬 Asset Management
 - ✅ Create, read, update, and delete lab assets
@@ -76,21 +82,39 @@ A comprehensive fullstack web application for managing laboratory equipment and 
 
 ## API Endpoints
 
-### GET /api/assets
-Fetch all assets with optional filtering:
-- Query params: `search`, `status`, `category`
+All endpoints require session authentication (JWT cookie from `/api/auth/login`).
 
-### POST /api/assets
-Create a new asset
+### Auth
+- `POST /api/auth/login` - Log in, sets session cookie
+- `POST /api/auth/logout` - Log out
+- `GET /api/auth/me` - Current user
 
-### GET /api/assets/[id]
-Fetch a specific asset by ID
+### Assets
+- `GET /api/assets` - List (query: `search`, `status`, `category`, `collegeId`, `page`, `limit`)
+- `POST /api/assets` - Create
+- `GET|PUT|DELETE /api/assets/[id]`
 
-### PUT /api/assets/[id]
-Update an existing asset
+### Labs & Colleges
+- `GET /api/labs` - List (admins may filter by `collegeId`)
+- `POST /api/labs` - Create (admin/main technician)
+- `GET /api/labs/[id]` - Lab detail with team
+- `GET /api/labs/[id]/assets` - Assets in a lab
+- `GET /api/colleges` - Visible institutions (all for admins, own otherwise)
 
-### DELETE /api/assets/[id]
-Delete an asset
+### Borrowing
+- `GET /api/asset-requests` - Requests (scoped by role)
+- `POST /api/asset-requests` - Create borrow/transfer request
+- `PUT /api/asset-requests/[id]` - Approve/reject (admin/main technician)
+- `GET /api/asset-loans` - Loans (scoped by role)
+- `PUT /api/asset-loans/[id]` - Mark returned (admin/main technician)
+
+### Notifications
+- `GET /api/notifications` - List (query: `unread=true`)
+- `PUT /api/notifications/[id]/read` - Mark one read
+- `PUT /api/notifications/read-all` - Mark all read
+
+### Health
+- `GET /api/health`
 
 ## 🚀 Quick Start
 
@@ -250,14 +274,12 @@ This application includes production-ready security features:
 
 | Document | Description |
 |----------|-------------|
-| [GETTING_STARTED.md](./GETTING_STARTED.md) | **START HERE** - Complete setup guide for new users |
-| [RBAC_GUIDE.md](./RBAC_GUIDE.md) | Complete role-based access control documentation |
-| [LAB_HIERARCHY_GUIDE.md](./LAB_HIERARCHY_GUIDE.md) | **NEW** - Lab dashboard & hierarchy system guide |
+| [RBAC_GUIDE.md](./RBAC_GUIDE.md) | Role-based access control documentation |
+| [LAB_HIERARCHY_GUIDE.md](./LAB_HIERARCHY_GUIDE.md) | Lab dashboard & hierarchy system guide |
 | [SECURITY.md](./SECURITY.md) | Security features and vulnerability assessment |
 | [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) | Production deployment guide |
-| [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | Upgrade from basic version to RBAC version |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture and design |
-| [SECURITY_SUMMARY.md](./SECURITY_SUMMARY.md) | Quick security reference |
+| [CHANGELOG.md](./CHANGELOG.md) | Release history |
 
 ## 🎓 MAHE Colleges Supported
 
@@ -270,7 +292,7 @@ This application includes production-ready security features:
 
 This project is designed for MAHE colleges. To add your college:
 
-1. Follow [GETTING_STARTED.md](./GETTING_STARTED.md)
+1. Follow the Quick Start above
 2. Add your college via seed script or SQL
 3. Create labs for your departments
 4. Import your equipment data

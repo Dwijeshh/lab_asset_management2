@@ -9,7 +9,7 @@ DATABASE_URL=postgresql://user:password@host:port/db?sslmode=require
 NODE_ENV=production
 
 # Security (Highly Recommended)
-API_KEY=<generate-with-openssl-rand-base64-32>
+JWT_SECRET=<generate-with-openssl-rand-base64-32>
 
 # Optional
 LOG_LEVEL=error
@@ -17,15 +17,13 @@ ALLOWED_ORIGINS=https://yourdomain.com
 MAX_REQUEST_SIZE=1mb
 ```
 
-### Code Changes Required for Production
+### Configuration Required for Production
 
-#### 1. Enable API Authentication
-**File: `src/app/api/assets/route.ts` and `src/app/api/assets/[id]/route.ts`**
+#### 1. Set JWT_SECRET
+Authentication is built in (JWT sessions, HTTP-only cookies, bcrypt hashing). Set a strong secret so session tokens can't be forged:
 
-Uncomment these lines:
-```typescript
-// Line ~16 and ~65
-validateApiKey(request);
+```bash
+JWT_SECRET=$(openssl rand -base64 32)
 ```
 
 #### 2. Configure Next.js Security Headers
@@ -77,21 +75,7 @@ const nextConfig = {
 };
 ```
 
-#### 3. Update Frontend for API Authentication
-**File: `src/app/page.tsx` and components**
-
-Add API key to requests:
-```typescript
-const response = await fetch('/api/assets', {
-  headers: {
-    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY || ''}`
-  }
-});
-```
-
-**Note**: For client-side auth, you should implement proper session-based auth instead!
-
-#### 4. Upgrade Rate Limiting to Redis
+#### 3. Upgrade Rate Limiting to Redis
 
 **Install Redis client:**
 ```bash
@@ -256,7 +240,7 @@ CMD ["npm", "start"]
 # Health check
 curl https://yourdomain.com/api/health
 
-# Test GET endpoint
+# Test GET endpoint (expect 401 without a session cookie)
 curl https://yourdomain.com/api/assets
 
 # Test rate limiting
@@ -373,19 +357,13 @@ ab -n 1000 -c 10 https://yourdomain.com/api/assets
 
 ## 📱 Client Configuration
 
-Update frontend to use production API:
+The app authenticates with HTTP-only session cookies — no client token code is needed. If the frontend is ever served from a different origin than the API, allow it via CORS in `next.config.ts`:
 ```typescript
-// src/lib/api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
-export async function fetchAssets() {
-  const response = await fetch(`${API_BASE_URL}/api/assets`, {
-    headers: {
-      'Authorization': `Bearer ${getToken()}`, // From session
-    },
-  });
-  return response.json();
-}
+// next.config.ts
+headers: async () => [{
+  source: '/api/:path*',
+  headers: [{ key: 'Access-Control-Allow-Origin', value: 'https://yourdomain.com' }],
+}],
 ```
 
 ## 🔄 Rollback Plan
@@ -408,8 +386,8 @@ psql -U user -d dbname < backup_YYYYMMDD_HHMMSS.sql
 
 ## 📋 Final Checklist
 
-- [ ] All environment variables set
-- [ ] API authentication enabled
+- [ ] All environment variables set (JWT_SECRET, DATABASE_URL)
+- [ ] `JWT_SECRET` is a strong random value
 - [ ] HTTPS configured and tested
 - [ ] Database backups automated
 - [ ] Redis configured for rate limiting

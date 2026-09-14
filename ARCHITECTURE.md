@@ -16,10 +16,10 @@
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │              Security Middleware                      │   │
-│  │  • Rate Limiting (60/20/10 req/min)                  │   │
-│  │  • Input Validation & Sanitization                   │   │
-│  │  • API Key Authentication (optional)                 │   │
-│  │  • Error Sanitization                                │   │
+│  │  • Rate Limiting (60/20/10 req/min)                   │   │
+│  │  • Input Validation & Sanitization                    │   │
+│  │  • JWT Session Authentication (required)              │   │
+│  │  • Error Sanitization                                 │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                             │                                │
 │                             ▼                                │
@@ -71,13 +71,13 @@
 │  • WAF (Web Application Firewall)                           │
 └─────────────────────────────────────────────────────────────┘
                              ▼
-┌─────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────┐
 │ Layer 2: Authentication & Authorization                      │
-│  ✅ Implemented but ⚠️ DISABLED by default                   │
-│  • API Key authentication (validateApiKey)                   │
-│  • Ready to enable (just uncomment)                          │
-│  • Supports Bearer token format                              │
-└─────────────────────────────────────────────────────────────┘
+│  ✅ Fully implemented and enabled                             │
+│  • JWT sessions in HTTP-only cookies (jose, bcryptjs)        │
+│  • Roles: admin, main_technician, technician                 │
+│  • College isolation enforced per role                       │
+└──────────────────────────────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Layer 3: Rate Limiting                                       │
@@ -140,10 +140,10 @@
        ├─> ✅ Pass: Continue
        └─> ❌ Fail: Return 429
 
-3. Authentication check (if enabled)
-   └─> API key validation
-       ├─> ✅ Valid: Continue
-       └─> ❌ Invalid: Return 401
+3. JWT session check
+   └─> Verify session cookie, load user + role
+       ├─> ✅ Authenticated: Continue
+       └─> ❌ Not logged in: Return 401
 
 4. Input validation
    └─> validateAssetInput(body)
@@ -167,36 +167,31 @@
 ## Current Security Status
 
 ### ✅ Secure (Implemented)
+- JWT session authentication (HTTP-only cookies, bcrypt passwords)
+- Multi-tenant college isolation (single policy owner in auth-jwt.ts)
 - Input validation & sanitization
-- Rate limiting (basic)
+- Rate limiting (per-route, in-memory)
 - SQL injection protection
 - XSS protection
-- Error handling
+- Error sanitization (no internal errors reach clients)
+- Audit logging of borrowing decisions
 - Secure logging
-- Pagination
-- ID validation
-
-### ⚠️ Ready but Disabled (Development Mode)
-- API key authentication
-  - Code: ✅ Complete
-  - Status: ❌ Commented out
-  - To enable: Uncomment `validateApiKey(request)` in API routes
+- Pagination & ID validation
 
 ### ❌ Not Configured (Requires Setup)
 - HTTPS/SSL (platform-dependent)
 - Security headers (CSP, HSTS, etc.)
 - CORS policy
 - CSRF protection
-- Audit logging
 - Redis-backed rate limiting
-- User authentication (NextAuth.js)
 
 ## Deployment Models
 
 ### Option A: Development (Current)
 ```
 ✅ Localhost HTTP
-✅ No authentication
+✅ JWT session auth
+✅ College isolation enforced
 ✅ Basic security features
 ❌ Not for public access
 ```
@@ -204,7 +199,7 @@
 ### Option B: Internal Lab (Minimum Security)
 ```
 ✅ HTTPS with self-signed cert
-✅ API key authentication enabled
+✅ JWT session authentication (built in)
 ✅ Behind firewall
 ✅ All security features active
 ⚠️ Single server instance
@@ -213,7 +208,7 @@
 ### Option C: Production (Full Security)
 ```
 ✅ HTTPS with valid certificate
-✅ User authentication (NextAuth.js)
+✅ JWT session authentication (built in)
 ✅ Redis-backed rate limiting
 ✅ Security headers configured
 ✅ CORS configured
@@ -234,7 +229,7 @@
 - **Runtime**: Node.js 18+
 - **Framework**: Next.js API Routes
 - **Validation**: Custom validators
-- **Authentication**: API Key (optional)
+- **Authentication**: JWT sessions (jose, bcryptjs)
 
 ### Database
 - **Database**: PostgreSQL 14+
@@ -253,33 +248,44 @@
 src/
 ├── app/
 │   ├── api/
-│   │   ├── assets/
-│   │   │   ├── route.ts          (List & Create - secured ✅)
-│   │   │   └── [id]/
-│   │   │       └── route.ts      (Get, Update, Delete - secured ✅)
-│   │   └── health/
-│   │       └── route.ts          (Health check)
-│   ├── page.tsx                  (Main UI)
+│   │   ├── auth/                 (login, logout, me - JWT sessions)
+│   │   ├── assets/               (list/create + [id] get/update/delete)
+│   │   ├── labs/                 (list/create + [id] + [id]/assets)
+│   │   ├── colleges/             (list)
+│   │   ├── asset-requests/       (borrow requests + [id] approve/reject)
+│   │   ├── asset-loans/          (loan list + [id] return)
+│   │   ├── notifications/        (list, mark read, read all)
+│   │   └── health/               (health check)
+│   ├── page.tsx                  (Dashboard)
+│   ├── labs/                     (Lab list + lab detail pages)
+│   ├── login/                    (Login page)
 │   ├── layout.tsx
 │   └── globals.css
 ├── components/
+│   ├── AppHeader.tsx             (Shared header + college switcher)
 │   ├── AssetForm.tsx             (Create/Edit modal)
 │   ├── AssetList.tsx             (Data table)
 │   ├── SearchBar.tsx             (Search & filters)
-│   └── StatsCards.tsx            (Dashboard stats)
+│   ├── StatsCards.tsx            (Dashboard stats)
+│   ├── BorrowRequestModal.tsx    (Borrow request + return date)
+│   ├── PendingRequestsPanel.tsx  (Approve/reject queue)
+│   ├── ActiveLoansPanel.tsx      (Loans + expected return)
+│   ├── NotificationBell.tsx      (Notification bell)
+│   └── CollegeSelector.tsx       (College switcher)
 ├── db/
 │   ├── index.ts                  (DB connection)
 │   └── schema.ts                 (Database schema)
 └── lib/
     ├── validation.ts             (Input validation ✅)
     ├── rateLimit.ts              (Rate limiting ✅)
-    ├── auth.ts                   (Authentication ⚠️)
+    ├── auth-jwt.ts               (JWT sessions + college scoping ✅)
+    ├── assets.ts                 (Shared category/status metadata ✅)
+    ├── useSession.ts             (Client session hook ✅)
     └── logger.ts                 (Secure logging ✅)
 
 Documentation/
-├── README.md                     (Getting started)
+├── README.md                     (Overview & API reference)
 ├── SECURITY.md                   (Complete security analysis)
-├── SECURITY_SUMMARY.md           (Quick reference)
 ├── PRODUCTION_CHECKLIST.md       (Deployment guide)
 ├── ARCHITECTURE.md               (This file)
 └── .env.example                  (Environment template)
@@ -326,7 +332,7 @@ curl localhost:3000/api/assets/-1
 - Rate limit hits
 
 ### Security Metrics
-- Failed authentication attempts (when enabled)
+- Failed login attempts
 - Rate limit violations
 - Invalid input attempts
 - Database query performance
