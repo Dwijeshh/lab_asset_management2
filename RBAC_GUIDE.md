@@ -78,9 +78,12 @@ Each asset is:
 - Linked to a lab, creator, and updater
 - Fields: name, category, manufacturer, model, serial number, status, dates, notes
 
-#### 5. **audit_logs** (Future)
-- Track all system changes
-- Fields: user, action, entity, changes, IP, timestamp
+#### 5. **audit_logs**
+- Track system changes for accountability
+- Records the borrowing lifecycle (requests, approvals, returns), user
+  administration (create, role change, disable, password reset), and asset
+  create/update/delete (field-level diffs, delete snapshots)
+- Fields: user, action, entity, changes (JSON), timestamp
 
 ## 🔐 Authentication & Authorization
 
@@ -125,6 +128,30 @@ canCreateAssets(role):
   ✅ admin
   ✅ main_technician
   ✅ technician
+```
+
+#### Borrow Requests (create own, any technician+)
+```typescript
+canRequestAssets(role):
+  ✅ admin
+  ✅ main_technician
+  ✅ technician
+```
+
+#### Approve/Reject Requests & Mark Loans Returned
+```typescript
+canApproveRequests(role):
+  ✅ admin
+  ✅ main_technician
+  ❌ technician
+```
+
+#### User Management (admin only)
+```typescript
+canManageUsers(role):
+  ✅ admin
+  ❌ main_technician
+  ❌ technician
 ```
 
 ## 🚀 Getting Started
@@ -245,9 +272,12 @@ INSERT INTO users (
 );
 ```
 
-### Option 2: User Management API (Recommended - To Implement)
+### Option 2: User Management UI & API (Implemented)
 
-Future enhancement: Admin panel for user management
+Admins manage users on the **Users** page (`/users`): create accounts, assign
+role/college/lab, reset passwords, and enable/disable. The same operations are
+available via `GET/POST /api/users`, `PUT /api/users/[id]`, and
+`PUT /api/users/[id]/password`.
 
 ## 🏗️ Scaling to Multiple Colleges
 
@@ -308,31 +338,31 @@ Users are automatically scoped to their college. They'll only see:
 - ✅ XSS protection
 - ✅ CSRF protection (cookies with SameSite)
 
-### 4. Audit Trail (Future Enhancement)
-- 🔜 Log all create/update/delete operations
-- 🔜 Track who made changes
-- 🔜 Record IP addresses and timestamps
-- 🔜 Compliance reporting
+### 4. Audit Trail (Implemented)
+- ✅ Log create/update/delete operations (assets, borrowing lifecycle, user administration)
+- ✅ Track who made changes and what changed (JSON diffs in `audit_logs`)
+- 🔜 Record IP addresses (columns exist, not yet populated)
+- 🔜 Compliance reporting UI
 
 ## 📈 Future Enhancements
 
 ### Phase 2 - User Management
-- [ ] Admin panel for user CRUD
-- [ ] Password reset functionality
+- [x] Admin panel for user CRUD (shipped: `/users` page)
+- [x] Password reset functionality (shipped: admin reset + self-service change)
 - [ ] Email verification
 - [ ] User invitation system
 
 ### Phase 3 - Advanced RBAC
 - [ ] Custom roles with granular permissions
 - [ ] Lab-specific technician assignments
-- [ ] Asset checkout system
-- [ ] Approval workflows
+- [x] Asset checkout system (shipped: borrowing/transfer lifecycle with approvals)
+- [x] Approval workflows (shipped: pending-request approve/reject queue)
 
 ### Phase 4 - Multi-Tenancy
 - [ ] College-level administrators
 - [ ] Inter-college asset sharing
 - [ ] Centralized reporting for MAHE
-- [ ] SSO integration with MAHE systems
+- [x] SSO integration (shipped: Keycloak OIDC via `AUTH_PROVIDER=keycloak`)
 
 ### Phase 5 - Advanced Features
 - [ ] Asset maintenance scheduling

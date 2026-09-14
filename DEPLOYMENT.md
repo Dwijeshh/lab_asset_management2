@@ -121,8 +121,14 @@ Go to https://railway.app and sign up with GitHub
 Go to your service → Variables:
 ```
 JWT_SECRET=your_generated_secret_here
+TRUST_PROXY=true
 NODE_ENV=production
 ```
+
+`TRUST_PROXY=true` is required on every platform here — these apps run behind a
+proxy that sets the real client IP in `X-Forwarded-For`; without it the rate
+limiter cannot tell clients apart (and with it unset the header is ignored as
+spoofable).
 
 ### Step 5: Deploy & Seed
 
@@ -168,6 +174,7 @@ Add in Render dashboard:
 ```
 DATABASE_URL=your_internal_postgres_url
 JWT_SECRET=your_generated_secret
+TRUST_PROXY=true
 NODE_ENV=production
 ```
 
@@ -209,6 +216,7 @@ Go to https://cloud.digitalocean.com
 ```
 DATABASE_URL=your_do_postgres_url
 JWT_SECRET=your_generated_secret
+TRUST_PROXY=true
 NODE_ENV=production
 ```
 
