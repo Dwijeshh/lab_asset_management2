@@ -51,8 +51,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Push schema
-        run: npx drizzle-kit push --force
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Check schema drift
+        run: npm run db:check
 
       - name: Seed database
         run: npm run seed

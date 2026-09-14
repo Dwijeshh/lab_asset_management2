@@ -87,7 +87,7 @@ npm i -g vercel
 vercel link
 
 # Push schema to production database
-DATABASE_URL="your_production_db_url" npx drizzle-kit push
+DATABASE_URL="your_production_db_url" npm run db:migrate
 
 # Seed initial data
 DATABASE_URL="your_production_db_url" npm run seed
@@ -132,7 +132,7 @@ Railway will auto-deploy. Once deployed:
 2. Copy connection string
 3. Run locally:
 ```bash
-DATABASE_URL="railway_postgres_url" npx drizzle-kit push
+DATABASE_URL="railway_postgres_url" npm run db:migrate
 DATABASE_URL="railway_postgres_url" npm run seed
 ```
 
@@ -175,7 +175,7 @@ NODE_ENV=production
 
 After deployment:
 ```bash
-DATABASE_URL="render_postgres_url" npx drizzle-kit push
+DATABASE_URL="render_postgres_url" npm run db:migrate
 DATABASE_URL="render_postgres_url" npm run seed
 ```
 
@@ -216,7 +216,7 @@ NODE_ENV=production
 
 After deployment, connect to database:
 ```bash
-DATABASE_URL="do_postgres_url" npx drizzle-kit push
+DATABASE_URL="do_postgres_url" npm run db:migrate
 DATABASE_URL="do_postgres_url" npm run seed
 ```
 
@@ -247,7 +247,7 @@ After deploying to any platform:
 
 - [ ] App accessible via HTTPS
 - [ ] Login page loads
-- [ ] Database schema pushed
+- [ ] Database migrations applied
 - [ ] Sample data seeded
 - [ ] Can login with admin@manipal.edu
 - [ ] Can view labs

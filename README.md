@@ -151,7 +151,7 @@ echo "DATABASE_URL=postgresql://user:password@localhost:5432/app_db" > .env
 echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
 
 # Push schema
-npx drizzle-kit push
+npm run db:migrate
 
 # Seed with sample data (MAHE colleges, labs, and users)
 npm run seed
@@ -220,7 +220,7 @@ npm run build
 npm start
 
 # Push database schema
-npx drizzle-kit push
+npm run db:migrate
 
 # Run the test suite
 npm test
@@ -237,9 +237,29 @@ The test suite (Vitest) has two layers:
 npm test
 ```
 
-The integration tests are idempotent — they create and clean up their own users and assets, and reject leftover pending requests. By default they run against your dev database; point `TEST_DATABASE_URL` at a scratch database (run `npx drizzle-kit push --force` and `npm run seed` against it first) for full isolation. `TEST_APP_PORT` overrides the server port.
+The integration tests are idempotent — they create and clean up their own users and assets, and reject leftover pending requests. By default they run against your dev database; point `TEST_DATABASE_URL` at a scratch database (run `npm run db:migrate --force` and `npm run seed` against it first) for full isolation. `TEST_APP_PORT` overrides the server port.
 
-CI runs typecheck, lint, schema push, seed, build, and the test suite on `main` and every `feature/**` branch; the Vercel deploy only happens on `main` and only after tests pass.
+CI runs typecheck, lint, database migrations, seed, build, and the test suite on `main` and every `feature/**` branch; the Vercel deploy only happens on `main` and only after tests pass.
+
+## 🗄️ Database Migrations
+
+Schema changes are versioned as committed Drizzle migrations in `drizzle/` (journal in `drizzle/meta/`), applied with `drizzle-kit migrate` and verified with `drizzle-kit check`. CI applies migrations and runs a drift check on every branch.
+
+**Baseline:** `drizzle/0000_baseline.sql` is the full current schema, written idempotently (enums, tables, constraints, and indexes are `IF NOT EXISTS`/guarded) so it applies cleanly to both fresh databases and the pre-migrations database this repo already had. The one-time generation procedure lives in `drizzle.baseline.config.ts`.
+
+**Making a schema change:**
+
+```bash
+# 1. Edit src/db/schema.ts
+# 2. Generate the migration SQL (diff against the database)
+npm run db:generate
+# 3. Review the generated file in drizzle/, then apply it
+npm run db:migrate
+# 4. Confirm schema.ts and the database are in sync
+npm run db:check
+```
+
+**Rollback:** Drizzle does not generate down-migrations. The safe rollback is a database restore from backup. For a hot-fix that only touches one migration, write a small SQL script that reverses it (e.g., `DROP COLUMN` / `ALTER TABLE ... DROP CONSTRAINT`), apply it with `psql`, and follow up with a corrective migration in the next change. Never hand-edit an already-applied migration file — the journal records its hash and `db:check` would report drift.
 
 ## 🔐 Single Sign-On (Keycloak)
 
