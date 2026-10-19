@@ -1,0 +1,19 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth-jwt';
+import { generateMonthlyReport } from '@/lib/monthlyReport';
+import { resolveReportScope } from '@/lib/reportAccess';
+import { generateWordMonthlyReport } from '@/lib/wordMonthlyReport';
+
+export async function GET(request: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let scope;
+  try { scope = await resolveReportScope(session.user, request.nextUrl.searchParams); }
+  catch (error) { const message = error instanceof Error ? error.message : ''; return NextResponse.json({ error: message === 'FORBIDDEN' ? 'Forbidden' : message }, { status: message === 'FORBIDDEN' ? 403 : 400 }); }
+  try {
+    const month = request.nextUrl.searchParams.get('month') || '';
+    const report = await generateMonthlyReport({ ...scope, period: month });
+    const buffer = generateWordMonthlyReport(report.summary);
+    return new NextResponse(new Uint8Array(buffer), { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': `attachment; filename="monthly-assets-${month}.docx"`, 'Cache-Control': 'no-store' } });
+  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not generate report' }, { status: 400 }); }
+}

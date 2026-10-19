@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789395739579,
+      "tag": "0000_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790979389835,
+      "tag": "0001_yielding_kate_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791010205345,
+      "tag": "0002_asset_modification_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791013817307,
+      "tag": "0003_asset_lifecycle_types_viewer_reports_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791271415073,
+      "tag": "0004_keep_feature_roles",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,330 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { ASSET_CATEGORIES, STATUSES } from '@/lib/assets';
+
+interface AssetFormProps {
+  asset?: any;
+  labs: any[];
+  defaultLabId?: number | null;
+  currentUser?: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function AssetForm({ asset, labs, defaultLabId, currentUser, onClose, onSuccess }: AssetFormProps) {
+  const displayLabs = currentUser
+    ? currentUser.role === 'admin'
+      ? labs
+      : currentUser.role === 'main_technician'
+      ? labs.filter((lab) => currentUser.assignedLabIds?.includes(lab.id))
+      : []
+    : labs;
+  const [formData, setFormData] = useState({
+    name: '',
+    category: 'other',
+    manufacturer: '',
+    model: '',
+    serialNumber: '',
+    labId: defaultLabId?.toString() || '',
+    location: '',
+    status: 'available',
+    purchaseDate: '',
+    warrantyExpiry: '',
+    notes: '',
+  });
+  const targetCollegeId = displayLabs.find((lab: any) => lab.id === Number(formData.labId))?.collegeId || currentUser?.collegeId;
+  const [loading, setLoading] = useState(false);
+  const [assetTypes, setAssetTypes] = useState<any[]>([]);
+  const [assetTypeId, setAssetTypeId] = useState('');
+  const [customFields, setCustomFields] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (!targetCollegeId) return;
+    fetch(`/api/asset-types?collegeId=${targetCollegeId}`).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json();
+      setAssetTypes(data.data || []);
+    }).catch(() => {});
+  }, [targetCollegeId]);
+  useEffect(() => {
+    if (!asset && !assetTypeId && assetTypes.length) {
+      const legacyMatch = assetTypes.find((type) => type.legacyCategory === formData.category);
+      if (legacyMatch) setAssetTypeId(String(legacyMatch.id));
+    }
+  }, [asset, assetTypeId, assetTypes, formData.category]);
+
+  useEffect(() => {
+    if (asset) {
+      setFormData({
+        name: asset.name || '',
+        category: asset.category || 'other',
+        manufacturer: asset.manufacturer || '',
+        model: asset.model || '',
+        serialNumber: asset.serialNumber || '',
+        labId: asset.labId?.toString() || defaultLabId?.toString() || '',
+        location: asset.location || '',
+        status: asset.status || 'available',
+        purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
+        warrantyExpiry: asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
+        notes: asset.notes || '',
+      });
+      setAssetTypeId(asset.assetTypeId ? String(asset.assetTypeId) : '');
+      setCustomFields(asset.customFields || {});
+    }
+  }, [asset, defaultLabId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const url = asset ? `/api/assets/${asset.id}` : '/api/assets';
+      const method = asset ? 'PUT' : 'POST';
+
+      const submitData = {
+        ...formData,
+        labId: parseInt(formData.labId),
+        assetTypeId: assetTypeId || null,
+        customFields,
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitData),
+      });
+
+      if (response.ok) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Error saving asset:', error);
+      alert('Failed to save asset');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  return (
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-6">
+        {asset ? 'Edit Asset' : 'Add New Asset'}
+      </h2>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Asset Name *
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., Olympus BX53 Microscope"
+            />
+          </div>
+
+          {assetTypes.length > 0 && <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Asset type</label>
+            <select value={assetTypeId} onChange={(e) => { const selected = assetTypes.find((type) => String(type.id) === e.target.value); setAssetTypeId(e.target.value); setCustomFields({}); if (selected?.legacyCategory) setFormData({ ...formData, category: selected.legacyCategory }); else if (selected) setFormData({ ...formData, category: 'other' }); }} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              <option value="">Legacy category only</option>
+              {assetTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select>
+          </div>}
+          {assetTypes.find((type) => String(type.id) === assetTypeId)?.fields?.map((field: any) => <div key={field.id}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}{field.required ? ' *' : ''}</label>
+            {field.type === 'select' ? <select required={field.required} value={customFields[field.fieldKey] ?? ''} onChange={(e) => setCustomFields({ ...customFields, [field.fieldKey]: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">Select…</option>{(field.options || []).map((option: string) => <option key={option} value={option}>{option}</option>)}</select>
+              : field.type === 'boolean' ? <select required={field.required} value={customFields[field.fieldKey] === undefined ? '' : String(customFields[field.fieldKey])} onChange={(e) => setCustomFields({ ...customFields, [field.fieldKey]: e.target.value === '' ? undefined : e.target.value === 'true' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">Choose…</option><option value="true">Yes</option><option value="false">No</option></select>
+              : <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'} required={field.required} value={customFields[field.fieldKey] ?? ''} onChange={(e) => setCustomFields({ ...customFields, [field.fieldKey]: field.type === 'number' ? (e.target.value === '' ? undefined : Number(e.target.value)) : e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />}
+          </div>)}
+
+          {!assetTypeId && <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category *
+            </label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {ASSET_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lab *
+            </label>
+            <select
+              name="labId"
+              value={formData.labId}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select a lab</option>
+              {displayLabs.map((lab: any) => (
+                <option key={lab.id} value={lab.id}>
+                  {lab.name} ({lab.code})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Manufacturer
+            </label>
+            <input
+              type="text"
+              name="manufacturer"
+              value={formData.manufacturer}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., Olympus"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Model
+            </label>
+            <input
+              type="text"
+              name="model"
+              value={formData.model}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., BX53"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Serial Number
+            </label>
+            <input
+              type="text"
+              name="serialNumber"
+              value={formData.serialNumber}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., SN123456"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Location *
+            </label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., Lab A, Room 101"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status *
+            </label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {STATUSES.map(status => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Purchase Date
+            </label>
+            <input
+              type="date"
+              name="purchaseDate"
+              value={formData.purchaseDate}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Warranty Expiry
+            </label>
+            <input
+              type="date"
+              name="warrantyExpiry"
+              value={formData.warrantyExpiry}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Notes
+          </label>
+          <textarea
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Additional notes or comments..."
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Saving...' : asset ? 'Update Asset' : 'Add Asset'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

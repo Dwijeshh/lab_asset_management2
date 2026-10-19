@@ -1,0 +1,131 @@
+'use client';
+
+import { CATEGORY_ICONS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/lib/assets';
+import { canManageLab } from '@/lib/useSession';
+
+interface AssetListProps {
+  assets: any[];
+  currentUser: any;
+  onEdit: (asset: any) => void;
+  onDelete: (id: number) => void;
+  onRequest: (asset: any) => void;
+  onProposeEdit: (asset: any) => void;
+  onHistory: (asset: any) => void;
+  canDelete?: boolean;
+}
+
+export default function AssetList({ assets, currentUser, onEdit, onDelete, onRequest, onProposeEdit, onHistory, canDelete }: AssetListProps) {
+  if (assets.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <div className="text-6xl mb-4">📋</div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No assets found</h3>
+        <p className="text-gray-600">Get started by adding your first lab asset.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Asset
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Asset type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Location
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Serial Number
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {assets.map((asset) => (
+              <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{CATEGORY_ICONS[asset.category] || '🔧'}</span>
+                    <div>
+                      <div className="font-medium text-gray-900">{asset.name}</div>
+                      {asset.manufacturer && (
+                        <div className="text-sm text-gray-500">
+                          {asset.manufacturer} {asset.model && `- ${asset.model}`}
+                        </div>
+                      )}
+                      {asset.customFieldDisplay?.length > 0 && <div className="mt-1 text-xs text-gray-500">{asset.customFieldDisplay.map((field: any) => `${field.label}: ${String(field.value)}`).join(' · ')}</div>}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-sm text-gray-700">
+                    {asset.assetTypeName || CATEGORY_LABELS[asset.category] || asset.category}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-sm text-gray-700">{asset.location}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[asset.status]}`}>
+                    {STATUS_LABELS[asset.status] || asset.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-sm text-gray-700">{asset.serialNumber || '-'}</span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => onHistory(asset)} className="px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-50 border border-indigo-200 rounded transition-colors">History</button>
+                    {currentUser?.role === 'technician' && asset.status === 'available' && currentUser?.labId && asset.labId !== currentUser.labId && (
+                      <button
+                        onClick={() => onRequest(asset)}
+                        className="px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded transition-colors"
+                      >
+                        Request
+                      </button>
+                    )}
+                    {currentUser?.role === 'technician' && asset.labId === currentUser.labId && (
+                      <button
+                        onClick={() => onProposeEdit(asset)}
+                        className="px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded transition-colors"
+                      >
+                        Suggest edit
+                      </button>
+                    )}
+                    {canManageLab(currentUser, asset.labId) && (
+                      <button
+                        onClick={() => onEdit(asset)}
+                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canManageLab(currentUser, asset.labId) && (
+                      <button
+                        onClick={() => onDelete(asset.id)}
+                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
