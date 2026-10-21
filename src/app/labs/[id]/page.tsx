@@ -72,8 +72,11 @@ export default function LabDashboardPage() {
   };
 
   useEffect(() => {
-    fetchLabDetails();
-    fetchLabAssets();
+    const load = async () => {
+      fetchLabDetails();
+      fetchLabAssets();
+    };
+    load();
   }, [labId]);
 
   const handleEdit = (asset: any) => {

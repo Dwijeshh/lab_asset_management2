@@ -21,7 +21,10 @@ export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
   };
 
   useEffect(() => {
-    fetchLoans();
+    const load = async () => {
+      fetchLoans();
+    };
+    load();
   }, []);
 
   const handleReturn = async (id: number) => {

@@ -2,6 +2,36 @@
 
 All notable changes to the Lab Asset Management System.
 
+## [2.3.1] - 2026-10-21 - Security Patch Round
+
+### 🔒 Dependency Security
+
+- Upgraded `next` 16.2.6 → **16.4.2** — closes the critical App Router
+  middleware/proxy-bypass advisory and the Server Actions denial-of-service
+  advisory, plus the transitively updated `eslint-config-next`.
+- Upgraded `postcss` to a patched release (XSS via unescaped `</style>`;
+  arbitrary file read via attacker-controlled `sourceMappingURL`).
+- `npm audit fix` resolved the remaining transitive production advisories
+  (`sharp` inherited libvips/libheif CVEs, `source-map-js` event-loop DoS).
+- Result: **`npm audit --omit=dev` reports 0 vulnerabilities**. Remaining
+  advisories are dev-only tooling (eslint/drizzle-kit majors) whose fixes are
+  breaking upgrades, deliberately deferred.
+
+### 🧹 Code Hygiene (forced by the toolchain upgrade)
+
+- Rebuilt after the framework bump and fixed the 5 lint errors surfaced by the
+  stricter React Compiler rules shipped in `eslint-config-next` 16.4.2:
+
+  - Wrapped effect-invoked async fetchers (pending-requests, active-loans,
+    notifications polling, lab dashboard) so no setState is reachable
+    synchronously from an effect body.
+  - `AssetForm` now initializes form state lazily from props and re-syncs via
+    the render-phase "adjusting state when a prop changes" pattern instead of
+    a state-setting effect.
+
+- Lint: 0 errors (4 pre-existing warnings untouched); typecheck clean;
+  full test suite **67/67 passing**; `next build` succeeds.
+
 ## [2.3.0] - 2026 - Test Suite & Database Migrations
 
 ### 🧪 Automated Testing

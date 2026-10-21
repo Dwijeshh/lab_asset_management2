@@ -290,9 +290,13 @@ This system implements comprehensive RBAC (Role-Based Access Control):
 - JWT-based authentication
 - HTTP-only secure cookies
 - Bcrypt password hashing
-- Rate limiting on all endpoints
+- Rate limiting on all endpoints (per-IP and per-account for login)
 - Input validation and sanitization
 - College-based data isolation
+- CSRF protection (origin checks on every mutating route)
+- Strict CSP and security headers (HSTS, X-Frame-Options, nosniff)
+- Server-side pagination (50 default, 100 max) to prevent oversized queries
+- Audited mutations (borrowing, user administration, asset CRUD)
 
 **📘 See [RBAC_GUIDE.md](./RBAC_GUIDE.md) for complete documentation**
 
@@ -321,6 +325,9 @@ This application includes production-ready security features:
 - ✅ **Secure Logging** - No sensitive data exposed in production logs
 - ✅ **Error Handling** - Safe error messages, no stack traces to clients
 - ✅ **JWT Session Authentication** - HTTP-only cookies, bcrypt hashing, role + college scoping
+- ✅ **CSRF Protection** - Origin checks on all 14 mutating API routes
+- ✅ **Security Headers** - Strict CSP, HSTS, X-Frame-Options, body-size middleware
+- ✅ **Pinned-Patched Dependencies** - `npm audit --omit=dev` reports 0 vulnerabilities; run it again before releases (dev-only tooling CVEs with breaking-major fixes are tracked in SECURITY.md)
 
 ### ⚠️ IMPORTANT: Before Production
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ASSET_CATEGORIES, STATUSES } from '@/lib/assets';
 
 interface AssetFormProps {
@@ -12,38 +12,51 @@ interface AssetFormProps {
 }
 
 export default function AssetForm({ asset, labs, defaultLabId, onClose, onSuccess }: AssetFormProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    category: 'other',
-    manufacturer: '',
-    model: '',
-    serialNumber: '',
-    labId: defaultLabId?.toString() || '',
-    location: '',
-    status: 'available',
-    purchaseDate: '',
-    warrantyExpiry: '',
-    notes: '',
-  });
+  // Build the initial form state from the asset being edited (all empty on
+  // create). Derived this way so state can start in sync with props without
+  // a state-setting effect.
+  const [formData, setFormData] = useState(() => ({
+    name: asset?.name || '',
+    category: asset?.category || 'other',
+    manufacturer: asset?.manufacturer || '',
+    model: asset?.model || '',
+    serialNumber: asset?.serialNumber || '',
+    labId: asset?.labId?.toString() || defaultLabId?.toString() || '',
+    location: asset?.location || '',
+    status: asset?.status || 'available',
+    purchaseDate: asset?.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
+    warrantyExpiry: asset?.warrantyExpiry ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
+    notes: asset?.notes || '',
+  }));
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (asset) {
-      setFormData({
-        name: asset.name || '',
-        category: asset.category || 'other',
-        manufacturer: asset.manufacturer || '',
-        model: asset.model || '',
-        serialNumber: asset.serialNumber || '',
-        labId: asset.labId?.toString() || defaultLabId?.toString() || '',
-        location: asset.location || '',
-        status: asset.status || 'available',
-        purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
-        warrantyExpiry: asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
-        notes: asset.notes || '',
-      });
-    }
-  }, [asset, defaultLabId]);
+  // Re-sync the form when the parent supplies a different asset or default
+  // lab. This is the render-phase "adjusting state when a prop changes"
+  // pattern (React: You Might Not Need an Effect) — no state-setting effect,
+  // and preserving the original behavior of not clearing a form when the
+  // selected asset is removed.
+  const [lastAsset, setLastAsset] = useState(asset);
+  const [lastDefaultLabId, setLastDefaultLabId] = useState(defaultLabId);
+  if (
+    asset &&
+    (asset !== lastAsset || defaultLabId !== lastDefaultLabId)
+  ) {
+    setLastAsset(asset);
+    setLastDefaultLabId(defaultLabId);
+    setFormData({
+      name: asset.name || '',
+      category: asset.category || 'other',
+      manufacturer: asset.manufacturer || '',
+      model: asset.model || '',
+      serialNumber: asset.serialNumber || '',
+      labId: asset.labId?.toString() || defaultLabId?.toString() || '',
+      location: asset.location || '',
+      status: asset.status || 'available',
+      purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
+      warrantyExpiry: asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
+      notes: asset.notes || '',
+    });
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

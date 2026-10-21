@@ -21,7 +21,10 @@ export default function PendingRequestsPanel({ userRole }: { userRole: string })
   };
 
   useEffect(() => {
-    fetchRequests();
+    const load = async () => {
+      fetchRequests();
+    };
+    load();
   }, []);
 
   const handleAction = async (id: number, action: 'approve' | 'reject') => {
