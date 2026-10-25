@@ -368,29 +368,3 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=your-32-char-secret  # NEW
 NODE_ENV=development            # NEW
 ```
-
-## Future Roadmap
-
-### v2.1 (Planned)
-- [ ] User management UI (Admin only)
-- [ ] Password reset functionality
-- [ ] Email notifications
-- [ ] Advanced search filters
-
-### v2.2 (Planned)
-- [ ] Asset maintenance scheduling
-- [ ] QR code generation for assets
-- [ ] Mobile-responsive improvements
-- [ ] Export to PDF/Excel
-
-### v3.0 (Future)
-- [ ] Mobile app
-- [ ] Advanced analytics
-- [ ] SSO integration with MAHE
-- [ ] Overdue loan reminders (scheduled jobs)
-
----
-
-**For the latest updates, see the [GitHub repository](.)** 
-
-**Built for MAHE Engineering Colleges with ❤️**
