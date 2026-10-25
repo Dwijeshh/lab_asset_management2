@@ -15,6 +15,7 @@ execution=$(az containerapp job start \
   --resource-group "$AZURE_RESOURCE_GROUP" \
   --name "$AZURE_MIGRATION_JOB" \
   --image "$MIGRATION_IMAGE" \
+  --env-vars "DATABASE_URL=secretref:database-url" \
   --query name -o tsv)
 [[ -n "$execution" ]] || { echo 'Migration job did not return an execution name' >&2; exit 1; }
 echo "Waiting for migration execution: $execution"
