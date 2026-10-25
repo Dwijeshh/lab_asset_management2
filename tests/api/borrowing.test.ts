@@ -5,6 +5,7 @@ let tech1: ApiClient;
 let mainTech: ApiClient;
 let admin: ApiClient;
 let tech1LabId: number;
+let tech1CollegeId: number;
 let otherLabId: number;
 
 // Assets created by the current test, deleted in afterEach.
@@ -20,6 +21,7 @@ beforeAll(async () => {
 
   const me = await tech1.get('/api/auth/me');
   tech1LabId = me.body.user.labId;
+  tech1CollegeId = me.body.user.collegeId;
 
   // A lab in tech1's college that is not their own, for requests to target.
   const labs = await tech1.get('/api/labs');
@@ -174,7 +176,7 @@ describe('permanent transfer', () => {
 
     const assetAfter = await admin.get(`/api/assets/${asset.id}`);
     expect(assetAfter.body.labId).toBe(tech1LabId);
-    expect(assetAfter.body.collegeId).toBe(4);
+    expect(assetAfter.body.collegeId).toBe(tech1CollegeId);
     expect(assetAfter.body.status).toBe('available');
   });
 });

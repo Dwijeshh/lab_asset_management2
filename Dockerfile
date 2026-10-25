@@ -6,7 +6,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Copy repository scripts before npm ci so package lifecycle hooks can access them.
 COPY . .
 RUN npm ci
-RUN npm run build
+# Next.js imports server modules during compilation. These values are only
+# placeholders for the builder stage; runtime values come from Azure secrets.
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build \
+    JWT_SECRET=build-only-secret-0123456789abcdefghijklmnop \
+    npm run build
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app

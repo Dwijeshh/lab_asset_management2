@@ -3,6 +3,8 @@ import { makeClient, login, uniqueEmail, deleteUser } from '../helpers';
 
 let admin: ReturnType<typeof makeClient>;
 let tempUserId: number | null = null;
+let techCollegeId: number;
+let techLabId: number;
 
 const createTempUser = async (): Promise<{ id: number; email: string; password: string }> => {
   const email = uniqueEmail('temp');
@@ -11,8 +13,8 @@ const createTempUser = async (): Promise<{ id: number; email: string; password: 
     name: 'Temp Test User',
     email,
     role: 'technician',
-    collegeId: 4,
-    labId: 6,
+    collegeId: techCollegeId,
+    labId: techLabId,
     password,
   });
   if (res.status !== 201) {
@@ -23,6 +25,10 @@ const createTempUser = async (): Promise<{ id: number; email: string; password: 
 
 beforeAll(async () => {
   admin = await login('admin@manipal.edu');
+  const tech = await login('tech1@manipal.edu');
+  const me = await tech.get('/api/auth/me');
+  techCollegeId = me.body.user.collegeId;
+  techLabId = me.body.user.labId;
 });
 
 afterAll(async () => {
@@ -43,6 +49,16 @@ describe('login', () => {
     const me = await client.get('/api/auth/me');
     expect(me.status).toBe(200);
     expect(me.body.user.role).toBe('technician');
+  });
+
+  it('allows repeated successful logins from different clients', async () => {
+    for (let i = 0; i < 6; i++) {
+      const res = await makeClient().post('/api/auth/login', {
+        email: 'tech1@manipal.edu',
+        password: 'password123',
+      });
+      expect(res.status).toBe(200);
+    }
   });
 
   it('rejects a wrong password and an unknown email identically', async () => {

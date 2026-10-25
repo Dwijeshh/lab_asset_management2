@@ -5,6 +5,9 @@ let tech1: ReturnType<typeof makeClient>;
 let kmcTech: ReturnType<typeof makeClient>;
 let admin: ReturnType<typeof makeClient>;
 let tech1LabId: number;
+let mitCollegeId: number;
+let kmcCollegeId: number;
+let otherMitLabId: number;
 
 beforeAll(async () => {
   tech1 = await login('tech1@manipal.edu');
@@ -12,6 +15,13 @@ beforeAll(async () => {
   admin = await login('admin@manipal.edu');
   const me = await tech1.get('/api/auth/me');
   tech1LabId = me.body.user.labId;
+  mitCollegeId = me.body.user.collegeId;
+  const kmcMe = await kmcTech.get('/api/auth/me');
+  kmcCollegeId = kmcMe.body.user.collegeId;
+  const labs = await tech1.get('/api/labs');
+  const otherLab = labs.body.data.find((lab: any) => lab.id !== tech1LabId);
+  if (!otherLab) throw new Error('seed has no second MIT lab');
+  otherMitLabId = otherLab.id;
 });
 
 describe('list scoping', () => {
@@ -20,15 +30,15 @@ describe('list scoping', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThan(0);
     for (const asset of res.body.data) {
-      expect(asset.collegeId).toBe(4);
+      expect(asset.collegeId).toBe(mitCollegeId);
     }
   });
 
   it('ignores a forged collegeId filter for non-admins', async () => {
-    const res = await tech1.get('/api/assets?collegeId=5');
+    const res = await tech1.get(`/api/assets?collegeId=${kmcCollegeId}`);
     expect(res.status).toBe(200);
     for (const asset of res.body.data) {
-      expect(asset.collegeId).toBe(4);
+      expect(asset.collegeId).toBe(mitCollegeId);
     }
   });
 
@@ -45,10 +55,10 @@ describe('list scoping', () => {
   it('scopes labs to the user\'s college', async () => {
     const mit = await tech1.get('/api/labs');
     expect(mit.status).toBe(200);
-    for (const lab of mit.body.data) expect(lab.collegeId).toBe(4);
+    for (const lab of mit.body.data) expect(lab.collegeId).toBe(mitCollegeId);
 
     const kmc = await kmcTech.get('/api/labs');
-    for (const lab of kmc.body.data) expect(lab.collegeId).toBe(5);
+    for (const lab of kmc.body.data) expect(lab.collegeId).toBe(kmcCollegeId);
   });
 });
 
@@ -59,8 +69,8 @@ describe('record-level isolation', () => {
 
   beforeAll(async () => {
     const all = await admin.get('/api/assets?collegeId=all');
-    kmcAssetId = all.body.data.find((a: any) => a.collegeId === 5)?.id;
-    const kmcLabs = await admin.get('/api/labs?collegeId=5');
+    kmcAssetId = all.body.data.find((a: any) => a.collegeId === kmcCollegeId)?.id;
+    const kmcLabs = await admin.get(`/api/labs?collegeId=${kmcCollegeId}`);
     kmcLabId = kmcLabs.body.data[0].id;
     const mit = await tech1.get('/api/assets');
     mitAsset = mit.body.data.find((a: any) => a.status === 'available');
@@ -105,7 +115,7 @@ describe('record-level isolation', () => {
       labId: kmcLabId,
     });
     expect(moved.status).toBe(200);
-    expect(moved.body.collegeId).toBe(5);
+    expect(moved.body.collegeId).toBe(kmcCollegeId);
 
     const back = await admin.put(`/api/assets/${mitAsset.id}`, {
       name: mitAsset.name,
@@ -115,7 +125,7 @@ describe('record-level isolation', () => {
       labId: mitAsset.labId,
     });
     expect(back.status).toBe(200);
-    expect(back.body.collegeId).toBe(4);
+    expect(back.body.collegeId).toBe(mitCollegeId);
   });
 });
 
@@ -135,7 +145,7 @@ describe('cross-college borrowing', () => {
   });
 
   it('blocks a KMC technician from requesting an MIT asset', async () => {
-    const target = await createAsset(tech1, tech1LabId === 6 ? 7 : 6);
+    const target = await createAsset(tech1, otherMitLabId);
     createdAssets.push(target.id);
 
     const res = await kmcTech.post('/api/asset-requests', {
@@ -146,7 +156,7 @@ describe('cross-college borrowing', () => {
   });
 
   it('blocks a KMC main technician from approving an MIT request', async () => {
-    const target = await createAsset(tech1, tech1LabId === 6 ? 7 : 6);
+    const target = await createAsset(tech1, otherMitLabId);
     createdAssets.push(target.id);
 
     const created = await tech1.post('/api/asset-requests', {
