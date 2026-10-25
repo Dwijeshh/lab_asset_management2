@@ -107,7 +107,7 @@ jobs:
           echo "migration_image=$server/labasset-migrate@$(jq -r '."containerimage.digest"' migration-metadata.json)" >> "$GITHUB_OUTPUT"
 
   staging:
-    if: ${{ false }}
+    
     needs: publish
     runs-on: ubuntu-latest
     environment: staging
