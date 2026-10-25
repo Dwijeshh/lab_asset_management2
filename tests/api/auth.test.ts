@@ -3,6 +3,8 @@ import { makeClient, login, uniqueEmail, deleteUser } from '../helpers';
 
 let admin: ReturnType<typeof makeClient>;
 let tempUserId: number | null = null;
+let techCollegeId: number;
+let techLabId: number;
 
 const createTempUser = async (): Promise<{ id: number; email: string; password: string }> => {
   const email = uniqueEmail('temp');
@@ -11,8 +13,8 @@ const createTempUser = async (): Promise<{ id: number; email: string; password: 
     name: 'Temp Test User',
     email,
     role: 'technician',
-    collegeId: 4,
-    labId: 6,
+    collegeId: techCollegeId,
+    labId: techLabId,
     password,
   });
   if (res.status !== 201) {
@@ -23,6 +25,10 @@ const createTempUser = async (): Promise<{ id: number; email: string; password: 
 
 beforeAll(async () => {
   admin = await login('admin@manipal.edu');
+  const tech = await login('tech1@manipal.edu');
+  const me = await tech.get('/api/auth/me');
+  techCollegeId = me.body.user.collegeId;
+  techLabId = me.body.user.labId;
 });
 
 afterAll(async () => {
