@@ -56,8 +56,8 @@ All notable changes to the Lab Asset Management System.
   databases and to databases that predate migrations.
 - New workflow: `npm run db:generate` (diff schema → SQL), `npm run db:migrate` (apply),
   `npm run db:check` (detect schema/migration drift). CI runs migrate + check.
-- Rollback procedure documented in README and DEPLOYMENT.md (backup restore; hot-fixes
-  via a corrective migration — never hand-edit an applied migration).
+- Rollback: restore from backup or use a corrective migration for a hot-fix.
+  Never hand-edit an applied migration.
 
 ### 🛡️ Security Hardening
 
@@ -163,8 +163,8 @@ All notable changes to the Lab Asset Management System.
 
 ### 📚 Documentation
 
-- Removed redundant docs: DEPLOY_NOW, QUICK_DEPLOY (duplicates of
-  DEPLOYMENT.md), SECURITY_SUMMARY (duplicate of SECURITY.md),
+- Removed redundant docs: DEPLOY_NOW, QUICK_DEPLOY, and SECURITY_SUMMARY
+  (duplicate of SECURITY.md),
   MIGRATION_GUIDE (v1→v2 upgrade that predates this repo's history), and
   GETTING_STARTED (duplicate of README Quick Start).
 - README now documents all API endpoints including borrowing and

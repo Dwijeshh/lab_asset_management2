@@ -90,9 +90,7 @@ Commit the generated SQL and `drizzle/meta/` changes together. Do not edit a mig
 
 ## Deployment
 
-Set `DATABASE_URL` and a strong `JWT_SECRET` in the deployment environment, apply migrations to the target database, then run `npm run build` and `npm start`. Use HTTPS and set `TRUST_PROXY=true` only when your proxy controls `X-Forwarded-For`. The committed CI workflow runs typecheck, lint, migrations, build, and tests on pushes to `main` and `feature/**`.
-
-The legacy `deploy.sh` helper uses `drizzle-kit push` and calls the destructive seed script. Do not use it with an existing or production database. See [DEPLOYMENT.md](./DEPLOYMENT.md) for the supported deployment procedure and [SECURITY.md](./SECURITY.md) for security controls and limitations.
+Azure deployment is planned. See [AZURE_DEPLOYMENT_PLAN.md](./AZURE_DEPLOYMENT_PLAN.md) for the target architecture, container work, CI/CD stages, release gates, and rollback procedure. The current GitHub workflow still targets Vercel and must be replaced as part of that plan. See [SECURITY.md](./SECURITY.md) for security controls and limitations.
 
 ## Project layout
 
