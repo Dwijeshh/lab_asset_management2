@@ -245,8 +245,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       }
       registries: [{ server: registry.properties.loginServer, identity: appIdentity.id }]
       secrets: [
-        { name: 'database-url', keyVaultUrl: 'https://${vault.name}.${environment().suffixes.keyvaultDns}/secrets/database-url', identity: appIdentity.id }
-        { name: 'jwt-secret', keyVaultUrl: 'https://${vault.name}.${environment().suffixes.keyvaultDns}/secrets/jwt-secret', identity: appIdentity.id }
+        { name: 'database-url', keyVaultUrl: '${vault.properties.vaultUri}secrets/database-url', identity: appIdentity.id }
+        { name: 'jwt-secret', keyVaultUrl: '${vault.properties.vaultUri}secrets/jwt-secret', identity: appIdentity.id }
       ]
     }
     template: {
@@ -291,7 +291,7 @@ resource migrationJob 'Microsoft.App/jobs@2024-03-01' = {
       replicaRetryLimit: 0
       manualTriggerConfig: { parallelism: 1, replicaCompletionCount: 1 }
       registries: [{ server: registry.properties.loginServer, identity: migrationIdentity.id }]
-      secrets: [{ name: 'database-url', keyVaultUrl: 'https://${vault.name}.${environment().suffixes.keyvaultDns}/secrets/database-url', identity: migrationIdentity.id }]
+      secrets: [{ name: 'database-url', keyVaultUrl: '${vault.properties.vaultUri}secrets/database-url', identity: migrationIdentity.id }]
     }
     template: {
       containers: [
