@@ -2,8 +2,6 @@ import { randomBytes } from 'crypto';
 
 export const APP_URL = process.env.TEST_APP_URL || 'http://localhost:3112';
 
-// Guarantees a unique X-Forwarded-For per client within this process.
-let clientCounter = 0;
 
 export interface ApiResponse {
   status: number;
@@ -27,7 +25,9 @@ export interface ApiClient {
  */
 export function makeClient(): ApiClient {
   let cookie = '';
-  const forwardedFor = `10.0.0.${(clientCounter++ % 250) + 2}`;
+  // Vitest can reload this module between files while the app server keeps
+  // its rate-limit state. Use a fresh address across the entire test run.
+  const forwardedFor = randomBytes(16).toString('hex').match(/.{4}/g)!.join(':');
 
   const request = async (method: string, path: string, body?: unknown): Promise<ApiResponse> => {
     const headers: Record<string, string> = {

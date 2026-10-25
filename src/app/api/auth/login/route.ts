@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Per-account throttle: slows credential stuffing against a known email
-    // even when the attacker rotates IPs.
-    await rateLimit(`auth:login:email:${email.toLowerCase()}`, {
-      windowMs: 15 * 60 * 1000,
-      maxRequests: 5,
-    });
+    // Count failed attempts per account even when the caller rotates IPs.
+    // Successful logins should not lock out a legitimate user.
+    const limitFailedAccountLogin = () => rateLimit(
+      `auth:login:email:${email.toLowerCase()}`,
+      { windowMs: 15 * 60 * 1000, maxRequests: 5 }
+    );
 
     // Find user
     const userResult = await db
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (userResult.length === 0) {
+      await limitFailedAccountLogin();
       // Generic error to prevent user enumeration
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyPassword(password, user.passwordHash);
 
     if (!isValid) {
+      await limitFailedAccountLogin();
       // No email in logs: failed attempts are an auth signal, not PII to retain
       logger.warn('Failed login attempt');
       return NextResponse.json(

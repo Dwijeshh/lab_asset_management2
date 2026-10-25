@@ -51,6 +51,16 @@ describe('login', () => {
     expect(me.body.user.role).toBe('technician');
   });
 
+  it('allows repeated successful logins from different clients', async () => {
+    for (let i = 0; i < 6; i++) {
+      const res = await makeClient().post('/api/auth/login', {
+        email: 'tech1@manipal.edu',
+        password: 'password123',
+      });
+      expect(res.status).toBe(200);
+    }
+  });
+
   it('rejects a wrong password and an unknown email identically', async () => {
     const wrongPassword = await makeClient().post('/api/auth/login', {
       email: 'tech1@manipal.edu',
