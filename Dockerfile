@@ -3,7 +3,7 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy scripts before npm ci: the optional local Cloudflare work has a postinstall hook.
+# Copy repository scripts before npm ci so package lifecycle hooks can access them.
 COPY . .
 RUN npm ci
 RUN npm run build

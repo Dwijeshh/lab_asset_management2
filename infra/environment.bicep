@@ -22,7 +22,7 @@ param postgresAdminLogin string = 'labassetadmin'
 
 var baseName = '${prefix}-${stage}'
 var postgresName = '${baseName}-pg-${uniqueString(resourceGroup().id)}'
-var vaultName = '${baseName}-kv-${uniqueString(resourceGroup().id)}'
+var vaultName = '${take(prefix, 5)}-${take(stage, 4)}-${take(uniqueString(resourceGroup().id), 10)}'
 var secretsUserRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
 
 resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {

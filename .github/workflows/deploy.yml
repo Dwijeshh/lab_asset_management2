@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run db:migrate
       - run: npm run db:check
       - run: npm run seed
