@@ -90,7 +90,7 @@ Commit the generated SQL and `drizzle/meta/` changes together. Do not edit a mig
 
 ## Deployment
 
-Azure deployment is planned. See [AZURE_DEPLOYMENT_PLAN.md](./AZURE_DEPLOYMENT_PLAN.md) for the target architecture, container work, CI/CD stages, release gates, and rollback procedure. The current GitHub workflow still targets Vercel and must be replaced as part of that plan. See [SECURITY.md](./SECURITY.md) for security controls and limitations.
+Azure container and CI/CD configuration is in the repository. See [AZURE_DEPLOYMENT_PLAN.md](./AZURE_DEPLOYMENT_PLAN.md) for the target architecture, Azure bootstrap, GitHub configuration, and release gates. The GitHub workflow runs CI on pull requests and publishes to Azure after the Azure variables and identities are configured. No Azure deployment has been performed from this repository yet. See [SECURITY.md](./SECURITY.md) for security controls and limitations.
 
 ## Project layout
 

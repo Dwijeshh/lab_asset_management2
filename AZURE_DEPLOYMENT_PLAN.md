@@ -1,6 +1,6 @@
 # Azure deployment and CI/CD plan
 
-**Status:** Plan only. The application is not yet deployed to Azure. This plan targets the Next.js app in this repository and uses GitHub Actions for releases.
+**Status:** Repository implementation is in place; Azure resources, identities, GitHub variables, and deployment are not yet configured. The bootstrap and GitHub setup steps are below. This plan targets the Next.js app in this repository and uses GitHub Actions for releases.
 
 ## Target architecture
 
@@ -29,7 +29,7 @@ Start with one web replica because the app's default rate limiter keeps state in
 ## Phase 1 — make the repository deployable
 
 1. Resolve the uncommitted Cloudflare/OpenNext and Freebuff changes separately from this Azure work. Do not include local `.freebuff/` logs, binaries, or generated build output in the image or a commit.
-2. Repair `Dockerfile`: use a Node version supported by the installed Next.js (currently Node >=20.9), enable `output: "standalone"` in `next.config.ts`, and copy the files required by `npm ci` before its `postinstall` step. Copy only runtime files into the final image. Run as a non-root user and keep `.env` out of the image.
+2. The updated `Dockerfile` uses: use a Node version supported by the installed Next.js (currently Node >=20.9), enable `output: "standalone"` in `next.config.ts`, and copy the files required by `npm ci` before its `postinstall` step. Copy only runtime files into the final image. Run as a non-root user and keep `.env` out of the image.
 3. Update `.dockerignore` for generated Cloudflare/Freebuff output. Build the image from a clean checkout, run it against a disposable PostgreSQL database, and confirm `/login` loads and `/api/health` returns HTTP 200 with `{ "ok": true }`.
 4. Exclude generated `.open-next/` and related build output from ESLint. The current local `npm run lint` scans those files and fails, so the CI lint gate needs this fix.
 5. Package a migration command/image from the same commit as the web image. It must include `drizzle-kit` and committed `drizzle/` migrations; the slim standalone web image does not need migration tooling.
@@ -48,7 +48,7 @@ Start with one web replica because the app's default rate limiter keeps state in
 
 ## Phase 3 — continuous integration
 
-Replace the Vercel deployment portion of `.github/workflows/deploy.yml`. Run CI on pull requests and pushes to `main`:
+The Vercel deployment portion of `.github/workflows/deploy.yml` has been replaced. Run CI on pull requests and pushes to `main`:
 
 1. Check out the commit and run `npm ci` with a pinned supported Node version.
 2. Start temporary PostgreSQL 16 in the GitHub Actions job; run `npm run db:migrate`, `npm run db:check`, and `npm run seed` **only against that temporary database**.
@@ -77,6 +77,71 @@ Never run `npm run seed` as a deployment step. Create real accounts through the 
 ## Decisions before provisioning
 
 Confirm the Azure subscription and region, expected traffic and budget, whether a custom domain is wanted, whether Keycloak is required, and who can approve production releases. These affect capacity, networking, identity, and DNS choices.
+
+## Infrastructure setup and first deployment
+
+The templates create a shared Azure Container Registry and separate staging and production environments. Each environment includes a VNet, private PostgreSQL Flexible Server, Key Vault, Container Apps environment, web app, migration job, managed identities, and Log Analytics. PostgreSQL is private; the web app receives a default HTTPS URL. A custom domain is optional.
+
+### Prerequisites
+
+- An Azure subscription where you can create resource groups, role assignments, federated identities, and the services above.
+- Azure CLI with Bicep support, Docker, and a Bash shell for local bootstrap.
+- A globally unique registry name and unique short lowercase prefix (10 characters maximum). Choose a region that supports VNet integrated Container Apps and PostgreSQL Flexible Server.
+- Decide whether production requires higher PostgreSQL capacity or high availability; the sample template uses a small Burstable server and one app replica.
+
+### Bootstrap
+
+The first two images must exist in ACR before the environment template can create the app and job. The migration job has to run once after infrastructure deployment to initialize each empty database. Run these steps from a clean checkout with an Azure account authorized for the target subscription:
+
+```bash
+az login
+az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+az group create -n "$REGISTRY_RG" -l "$AZURE_REGION"
+az group create -n "$STAGING_RG" -l "$AZURE_REGION"
+az group create -n "$PRODUCTION_RG" -l "$AZURE_REGION"
+az deployment group create -g "$REGISTRY_RG" -f infra/registry.bicep -p registryName="$ACR_NAME"
+az acr login -n "$ACR_NAME"
+ACR_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
+docker buildx build --platform linux/amd64 --push -f Dockerfile -t "$ACR_SERVER/labasset-web:bootstrap" .
+docker buildx build --platform linux/amd64 --push -f Dockerfile.migrate -t "$ACR_SERVER/labasset-migrate:bootstrap" .
+```
+
+Read the immutable digests with `az acr repository show-tags --name "$ACR_NAME" --repository labasset-web --detail` or from Docker build metadata. Set `APP_IMAGE` and `MIGRATION_IMAGE` to `server/repository@sha256:...` values. Generate separate 32+ character JWT secrets and strong PostgreSQL passwords. Supply them as secure parameters from a protected local parameter file or interactive prompt; do not commit them, add them to shell history, or print them in CI logs.
+
+```bash
+az deployment group create -g "$STAGING_RG" -f infra/environment.bicep \
+  -p prefix="$PREFIX" stage=staging registryName="$ACR_NAME" registryResourceGroup="$REGISTRY_RG" \
+     appImage="$APP_IMAGE" migrationImage="$MIGRATION_IMAGE" \
+     postgresAdminPassword="$STAGING_DB_PASSWORD" jwtSecret="$STAGING_JWT_SECRET"
+az deployment group create -g "$PRODUCTION_RG" -f infra/environment.bicep \
+  -p prefix="$PREFIX" stage=production registryName="$ACR_NAME" registryResourceGroup="$REGISTRY_RG" \
+     appImage="$APP_IMAGE" migrationImage="$MIGRATION_IMAGE" \
+     postgresAdminPassword="$PRODUCTION_DB_PASSWORD" jwtSecret="$PRODUCTION_JWT_SECRET"
+```
+
+If your environment uses a shell with command history, prefer `az deployment group create --parameters @<protected-file>` and delete the protected parameter file securely after deployment. Apply the committed migrations once to each new database with `az containerapp job start -g <environment-rg> -n <migration-job-name>`; wait for `Succeeded` before using the app. Do not run `npm run seed` against these databases. Create real accounts through the admin flow or your approved provisioning process.
+
+### GitHub Actions configuration
+
+Create one Entra app or user assigned identity for image publishing, plus separate deployment identities for staging and production. Add GitHub federated credentials for these subjects:
+
+- Publisher: `repo:<owner>/<repo>:ref:refs/heads/main`
+- Staging deployer: `repo:<owner>/<repo>:environment:staging`
+- Production deployer: `repo:<owner>/<repo>:environment:production`
+
+Give the publisher `AcrPush` on the registry. Give each deployer only the permissions required to start its migration job, update its Container App, read its PostgreSQL backup metadata, and read app state in its resource group. Scope production access to the production resources. Require reviewers on the GitHub `production` environment and protect `main` with the CI check.
+
+Set repository variables `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_ACR_NAME`, and `AZURE_PUBLISH_CLIENT_ID`. Set these variables separately in each GitHub environment: `AZURE_CLIENT_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_APP_NAME`, `AZURE_MIGRATION_JOB`, and `AZURE_POSTGRES_SERVER`. The workflow publishes only from `main` and skips publishing until publisher variables exist. Application secrets remain in Key Vault and are never GitHub variables.
+
+The release workflow builds the web and migration images from the same commit, records their digests, migrates staging, deploys and probes staging, then waits for production environment approval. It checks that a production PostgreSQL recovery point exists before migration. Confirm backup restoration and app revision rollback in staging before production use. Schema migrations must remain compatible with the previous app revision during a rollout.
+
+### Configuration notes
+
+- App and migration identities have ACR pull and Key Vault Secrets User permissions. Cross-resource-group ACR role assignments require role assignment privileges on the registry resource group.
+- This template uses versionless Key Vault secret references so new secret versions are picked up automatically. Keep separate staging and production vaults.
+- The app starts at one replica because its fallback rate limiter is process local. Add a shared Redis service and set `REDIS_URL` before raising `maxReplicas`.
+- If you select Keycloak, add its URL, client ID, and client secret to the app configuration and Key Vault. Review `TRUST_PROXY` against Azure ingress behavior before enabling it.
+- The default Container Apps HTTPS hostname works without a purchased domain. Add a custom hostname and certificate only if desired.
 
 ## Azure references
 

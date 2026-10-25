@@ -1,17 +1,21 @@
-name: CI & Deployment
+name: CI and Azure deployment
 
 on:
+  pull_request:
   push:
-    branches:
-      - main
-      - 'feature/**'
+    branches: [main]
   workflow_dispatch:
 
-jobs:
-  test:
-    name: Typecheck, Lint & Test
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
+concurrency:
+  group: azure-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16
@@ -19,79 +23,142 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: app_db
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_db
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_db
       JWT_SECRET: ci-test-secret-0123456789abcdefghijklmnop
       NODE_ENV: production
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run db:check
+      - run: npm run seed
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Validate Azure templates
+        run: |
+          export AZURE_CONFIG_DIR="$RUNNER_TEMP/azure-cli"
+          az bicep install --version v0.48.1
+          az bicep build --file infra/registry.bicep --outfile "$RUNNER_TEMP/registry.json"
+          az bicep build --file infra/environment.bicep --outfile "$RUNNER_TEMP/environment.json"
+      - name: Build both release images
+        run: |
+          docker build -t labasset-web:ci -f Dockerfile .
+          docker build -t labasset-migrate:ci -f Dockerfile.migrate .
+      - name: Smoke test web container
+        run: |
+          docker run -d --name labasset-smoke --network host \
+            -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" \
+            labasset-web:ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/api/health | grep -q '"ok":true' \
+              && curl --fail --silent http://localhost:3000/login >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs labasset-smoke
+          exit 1
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: TypeScript check
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Apply migrations
-        run: npm run db:migrate
-
-      - name: Check schema drift
-        run: npm run db:check
-
-      - name: Seed database
-        run: npm run seed
-
-      - name: Build application
-        run: npm run build
-
-      - name: Run test suite
-        run: npm test
-
-  deploy:
-    name: Deploy to Vercel
-    needs: test
-    if: github.ref == 'refs/heads/main'
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.AZURE_PUBLISH_CLIENT_ID != '' && vars.AZURE_ACR_NAME != ''
+    needs: ci
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      app_image: ${{ steps.images.outputs.app_image }}
+      migration_image: ${{ steps.images.outputs.migration_image }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Deploy to Vercel
-        if: ${{ env.VERCEL_TOKEN != '' }}
-        uses: amondnet/vercel-action@v25
+          client-id: ${{ vars.AZURE_PUBLISH_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and publish immutable images
+        id: images
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+        run: |
+          set -euo pipefail
+          az acr login --name "$ACR_NAME"
+          server=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
+          docker buildx build --platform linux/amd64 --push \
+            -f Dockerfile -t "$server/labasset-web:$GITHUB_SHA" \
+            --metadata-file app-metadata.json .
+          docker buildx build --platform linux/amd64 --push \
+            -f Dockerfile.migrate -t "$server/labasset-migrate:$GITHUB_SHA" \
+            --metadata-file migration-metadata.json .
+          echo "app_image=$server/labasset-web@$(jq -r '."containerimage.digest"' app-metadata.json)" >> "$GITHUB_OUTPUT"
+          echo "migration_image=$server/labasset-migrate@$(jq -r '."containerimage.digest"' migration-metadata.json)" >> "$GITHUB_OUTPUT"
+
+  staging:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Migrate, deploy, and smoke test staging
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_APP_NAME: ${{ vars.AZURE_APP_NAME }}
+          AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
+          APP_IMAGE: ${{ needs.publish.outputs.app_image }}
+          MIGRATION_IMAGE: ${{ needs.publish.outputs.migration_image }}
+        run: bash scripts/azure-release.sh
+
+  production:
+    needs: [publish, staging]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify production recovery point
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_POSTGRES_SERVER: ${{ vars.AZURE_POSTGRES_SERVER }}
+        run: |
+          set -euo pipefail
+          count=$(az postgres flexible-server backup list \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --server-name "$AZURE_POSTGRES_SERVER" \
+            --query 'length(@)' -o tsv)
+          test "$count" -gt 0
+      - name: Migrate, deploy, and smoke test production
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_APP_NAME: ${{ vars.AZURE_APP_NAME }}
+          AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
+          APP_IMAGE: ${{ needs.publish.outputs.app_image }}
+          MIGRATION_IMAGE: ${{ needs.publish.outputs.migration_image }}
+        run: bash scripts/azure-release.sh
