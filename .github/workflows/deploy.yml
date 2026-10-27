@@ -131,7 +131,6 @@ jobs:
         run: bash scripts/azure-release.sh
 
   production:
-    if: ${{ false }}
     needs: [publish, staging]
     runs-on: ubuntu-latest
     environment: production
