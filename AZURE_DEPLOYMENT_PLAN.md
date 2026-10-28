@@ -65,7 +65,7 @@ Protect `main` so a failing CI run cannot be merged. Tests must never use stagin
 4. Require approval through the GitHub production environment. Confirm the production database backup/recovery point, then run the production migration job and deploy **the same image digest** to production.
 5. Wait for production readiness and run smoke checks. Keep the previous Container Apps revision available for traffic rollback. Design schema migrations to work with both the previous and new app versions during rollout; an image rollback does not reverse a database migration.
 
-Never run `npm run seed` as a deployment step. Create real accounts through the app's admin flow or an approved provisioning process; remove or rotate demo credentials before production use.
+Never run `npm run seed` as a deployment step. The committed `0001_add_mahe_institutions` migration adds missing MCODS and MCOPS institution rows to existing databases without replacing MIT or KMC data; the release pipeline applies it to staging and then production. Institution-specific labs, assets, and staff accounts still need to be created through the app or an approved provisioning process. Remove or rotate demo credentials before production use.
 
 ## Completion criteria
 

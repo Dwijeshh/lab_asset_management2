@@ -34,7 +34,7 @@ Open <http://localhost:3000/login>. The health endpoint is <http://localhost:300
 
 ### Demo data
 
-`npm run seed` is **destructive**: `src/scripts/seed.ts` deletes existing assets, users, labs, and colleges before inserting sample data. Run it only against a fresh, disposable database. Do not run it against a database containing data you need to keep.
+`npm run seed` is **destructive**: `src/scripts/seed.ts` deletes existing assets, users, labs, and colleges before inserting sample data. Run it only against a fresh, disposable database. Do not run it against a database containing data you need to keep. The deployment migration `0001_add_mahe_institutions` safely adds MCODS and MCOPS to existing databases without resetting MIT, KMC, or their records. It does not create demo labs, assets, or users.
 
 After seeding a fresh database, the sample admin login is `admin@manipal.edu` / `password123`. Change the password before exposing the app to others. If you use an existing database, keep its existing accounts and skip the seed step.
 
@@ -90,7 +90,7 @@ Commit the generated SQL and `drizzle/meta/` changes together. Do not edit a mig
 
 ## Deployment
 
-Azure container and CI/CD configuration is in the repository. See [AZURE_DEPLOYMENT_PLAN.md](./AZURE_DEPLOYMENT_PLAN.md) for the target architecture, Azure bootstrap, GitHub configuration, and release gates. The GitHub workflow runs CI on pull requests and publishes to Azure after the Azure variables and identities are configured. No Azure deployment has been performed from this repository yet. See [SECURITY.md](./SECURITY.md) for security controls and limitations.
+Azure container and CI/CD configuration is in the repository. See [AZURE_DEPLOYMENT_PLAN.md](./AZURE_DEPLOYMENT_PLAN.md) for the architecture, GitHub configuration, and release gates. The GitHub workflow runs CI on pull requests and, on `main`, applies committed migrations to staging before production deployment approval. The staging and production apps are live. See [SECURITY.md](./SECURITY.md) for security controls and limitations.
 
 ## Project layout
 
