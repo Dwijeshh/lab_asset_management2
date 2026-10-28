@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 const SSO_ERRORS: Record<string, string> = {
   sso_failed: 'Single sign-on failed. Please try again or contact your administrator.',
@@ -9,9 +11,11 @@ const SSO_ERRORS: Record<string, string> = {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [authMode, setAuthMode] = useState<'checking' | 'local'>('checking');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -74,7 +78,7 @@ export default function LoginPage() {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Redirect to home page
-      window.location.href = '/';
+      router.push('/');
     } catch {
       setError('An error occurred during login. Please try again.');
       setLoading(false);
@@ -82,106 +86,125 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+    <main className="login-page min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+      <section className="relative min-h-64 overflow-hidden bg-stone-900 lg:sticky lg:top-0 lg:h-screen lg:min-h-0 lg:self-start" aria-label="MAHE Manipal campus">
+        <Image
+          src="/mahe-administration.jpg"
+          alt="Administrative building of Manipal Academy of Higher Education in Manipal"
+          fill
+          priority
+          sizes="(min-width: 1024px) calc(100vw - 520px), 100vw"
+          className="object-cover object-center"
+        />
+        <div className="login-photo-overlay absolute inset-0" aria-hidden="true" />
+        <div className="absolute bottom-12 left-6 right-6 text-white sm:left-10 lg:bottom-16 lg:left-14 lg:right-14">
+          <p className="login-photo-label mb-2 text-sm font-semibold tracking-wide">MAHE · MANIPAL</p>
+          <p className="max-w-xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">A clearer view of every lab asset.</p>
+        </div>
+      </section>
+      <div className="login-form-panel relative -mt-6 flex min-w-0 items-center rounded-t-3xl px-4 pb-10 pt-8 sm:px-8 lg:mt-0 lg:min-h-screen lg:rounded-none lg:px-10 lg:py-12">
+      <div className="mx-auto w-full max-w-lg">
+        <div className="login-card surface-card overflow-hidden border-t-4 p-6 shadow-lg sm:p-9">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <img
+          <div className="mb-5 text-center">
+            <div className="mb-2 flex justify-center">
+              <Image
                 src="/logo.jpg"
-                alt="Organization Logo"
-                className="h-20 w-auto object-contain rounded-xl border border-gray-100 bg-white p-2 shadow-sm"
+                alt="MAHE logo"
+                width={80}
+                height={80}
+                className="login-logo h-16 w-auto rounded-xl border border-stone-200 bg-white p-2 object-contain shadow-sm"
               />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">
+            <h1 className="login-title mb-1 text-2xl font-bold tracking-tight sm:text-3xl">
               Lab Asset Manager
             </h1>
-            <p className="text-gray-600 font-medium">Manipal Academy of Higher Education (MAHE)</p>
+            <p className="login-muted font-medium">Manipal Academy of Higher Education (MAHE)</p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div role="alert" className="ui-alert mb-6">
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           )}
 
           {authMode === 'checking' ? (
-            <div className="py-8 text-center">
-              <div className="mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              <p className="mt-4 text-sm text-gray-600">Checking sign-in method…</p>
+            <div role="status" className="py-8 text-center">
+              <div className="login-spinner mx-auto h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+              <p className="login-muted mt-4 text-sm">Checking sign-in method…</p>
             </div>
           ) : (
             <>
               {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="login-email" className="login-label ui-label">
                     Email Address
                   </label>
                   <input
+                    id="login-email"
+                    autoComplete="username"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="login-input ui-field"
                     placeholder="your.email@manipal.edu"
                     disabled={loading}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="login-password" className="login-label ui-label">
                     Password
                   </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="••••••••"
-                    disabled={loading}
-                  />
+                  <div className="relative">
+                    <input
+                      id="login-password"
+                      autoComplete="current-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="login-input ui-field pr-20"
+                      placeholder="••••••••"
+                      disabled={loading}
+                    />
+                    <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} disabled={loading} className="login-password-toggle">
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="login-submit ui-button w-full"
                 >
                   {loading ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>
 
               {/* Demo Credentials */}
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <p className="text-xs text-gray-500 text-center mb-3 font-semibold uppercase tracking-wide">Demo Credentials</p>
-                <div className="space-y-2 text-xs">
-                  <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg">
-                    <p className="font-semibold text-purple-700">System Admin:</p>
-                    <p className="text-gray-600">admin@manipal.edu / password123</p>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg">
-                    <p className="font-semibold text-blue-700">Main Technician (MIT):</p>
-                    <p className="text-gray-600">main.tech@manipal.edu / password123</p>
-                  </div>
-                  <div className="bg-green-50 border border-green-100 p-3 rounded-lg">
-                    <p className="font-semibold text-green-700">Lab Technician (MIT):</p>
-                    <p className="text-gray-600">tech1@manipal.edu / password123</p>
-                  </div>
-                </div>
+              <div className="login-divider mt-5 border-t pt-3">
+                <p className="login-muted mb-2 text-xs font-semibold">Demo credentials</p>
+                <dl className="login-demo-list text-xs">
+                  <div className="login-demo-row"><dt>Admin</dt><dd>admin@manipal.edu / password123</dd></div>
+                  <div className="login-demo-row"><dt>Main tech</dt><dd>main.tech@manipal.edu / password123</dd></div>
+                  <div className="login-demo-row"><dt>Technician</dt><dd>tech1@manipal.edu / password123</dd></div>
+                </dl>
               </div>
             </>
           )}
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-gray-600 mt-6">
-          © 2024 MAHE - Manipal Academy of Higher Education
+        <p className="login-muted mt-6 text-center text-xs leading-relaxed">
+          Campus photo: <a className="login-credit-link underline" href="https://commons.wikimedia.org/wiki/File:MAHEMANIPALEDU.jpg" target="_blank" rel="noopener noreferrer">Lann the Clever / Wikimedia Commons</a> · <a className="login-credit-link underline" href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> · resized and cropped for display.
         </p>
       </div>
-    </div>
+      </div>
+    </main>
   );
 }

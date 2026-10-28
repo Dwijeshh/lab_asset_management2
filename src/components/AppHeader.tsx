@@ -1,6 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import CollegeSelector from '@/components/CollegeSelector';
 import NotificationBell from '@/components/NotificationBell';
 import type { College } from '@/lib/useSession';
@@ -25,6 +27,7 @@ interface AppHeaderProps {
   backLink?: { label: string; href: string };
   title: string;
   subtitle: string;
+  showCollegeSelector?: boolean;
 }
 
 /**
@@ -40,18 +43,22 @@ export default function AppHeader({
   backLink,
   title,
   subtitle,
+  showCollegeSelector = true,
 }: AppHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   return (
-    <div className="mb-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-      <div className="flex items-center gap-4">
-        <img
+    <header className="surface-card mb-6 flex min-w-0 flex-col gap-5 p-4 sm:p-6 2xl:flex-row 2xl:items-center 2xl:justify-between">
+      <div className="flex min-w-0 items-center gap-4">
+        <Image
           src="/logo.jpg"
           alt="MAHE Logo"
+          width={64}
+          height={64}
           className="h-16 w-auto object-contain rounded-lg border border-gray-200 bg-white p-1 shadow-sm"
         />
-        <div>
+        <div className="min-w-0">
           {backLink && (
             <button
               onClick={() => router.push(backLink.href)}
@@ -65,33 +72,34 @@ export default function AppHeader({
           </h1>
           <p className="mt-0.5 text-gray-600 font-medium text-sm">{subtitle}</p>
           {user.role === 'admin' && (
-            <nav className="mt-2 flex gap-1.5">
+          <nav aria-label="Primary" className="mt-3 flex flex-wrap gap-1.5">
               {ADMIN_NAV.map((item) => (
-                <button
+                <Link
                   key={item.href}
-                  onClick={() => router.push(item.href)}
+                  href={item.href}
+                  aria-current={pathname === item.href ? 'page' : undefined}
                   className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
-                    item.href === '/users' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    pathname === item.href ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
                   {item.label}
-                </button>
+                </Link>
               ))}
             </nav>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <CollegeSelector
+      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        {showCollegeSelector && <CollegeSelector
           userRole={user.role}
           userCollegeId={user.collegeId}
           colleges={colleges}
           selectedCollegeId={selectedCollegeId}
           onCollegeChange={onCollegeChange}
-        />
+        />}
 
-        <div className="flex items-center gap-3 border-l pl-3 border-gray-200">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 border-t pt-3 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3 border-gray-200">
           <NotificationBell />
           <div className="text-right ml-2">
             <span className="text-sm font-semibold text-gray-800 block">{user.name}</span>
@@ -108,6 +116,6 @@ export default function AppHeader({
           </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

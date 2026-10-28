@@ -1,60 +1,25 @@
 'use client';
 
 interface StatsCardsProps {
-  assets: any[];
+  counts: { total: number; available: number; inUse: number; maintenance: number };
 }
 
-export default function StatsCards({ assets }: StatsCardsProps) {
-  const totalAssets = assets.length;
-  const available = assets.filter(a => a.status === 'available').length;
-  const inUse = assets.filter(a => a.status === 'in_use').length;
-  const maintenance = assets.filter(a => a.status === 'maintenance').length;
-
+export default function StatsCards({ counts }: StatsCardsProps) {
   const stats = [
-    {
-      label: 'Total Assets',
-      value: totalAssets,
-      icon: '📦',
-      color: 'bg-blue-50 text-blue-600',
-    },
-    {
-      label: 'Available',
-      value: available,
-      icon: '✅',
-      color: 'bg-green-50 text-green-600',
-    },
-    {
-      label: 'In Use',
-      value: inUse,
-      icon: '🔄',
-      color: 'bg-purple-50 text-purple-600',
-    },
-    {
-      label: 'Maintenance',
-      value: maintenance,
-      icon: '🔧',
-      color: 'bg-yellow-50 text-yellow-600',
-    },
+    { label: 'Total assets', value: counts.total },
+    { label: 'Available', value: counts.available },
+    { label: 'In use', value: counts.inUse },
+    { label: 'Maintenance', value: counts.maintenance },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <dl className="surface-card stats-overview mb-8" aria-label="Asset status overview">
       {stats.map((stat) => (
-        <div
-          key={stat.label}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">{stat.label}</p>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-            <div className={`text-4xl ${stat.color} rounded-full p-3`}>
-              {stat.icon}
-            </div>
-          </div>
+        <div key={stat.label} className="stats-overview-item">
+          <dt>{stat.label}</dt>
+          <dd>{stat.value.toLocaleString()}</dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

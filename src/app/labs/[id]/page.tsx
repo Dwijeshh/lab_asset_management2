@@ -1,10 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import AssetForm from '@/components/AssetForm';
 import AssetList from '@/components/AssetList';
+import StatsCards from '@/components/StatsCards';
+import ModalDialog from '@/components/ModalDialog';
+import UiIcon from '@/components/UiIcon';
 import { useSession } from '@/lib/useSession';
+import { institutionBanner } from '@/lib/institutionBanner';
+import CampusBannerLabel from '@/components/CampusBannerLabel';
 
 interface Lab {
   id: number;
@@ -16,6 +22,7 @@ interface Lab {
   roomNumber?: string;
   capacity?: number;
   isActive: boolean;
+  collegeCode?: string;
 }
 
 interface LabUser {
@@ -27,7 +34,6 @@ interface LabUser {
 }
 
 export default function LabDashboardPage() {
-  const router = useRouter();
   const params = useParams();
   const labId = params.id as string;
   
@@ -36,36 +42,45 @@ export default function LabDashboardPage() {
   const [labUsers, setLabUsers] = useState<LabUser[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(true);
+  const [detailsError, setDetailsError] = useState('');
+  const [assetsError, setAssetsError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
 
   const fetchLabDetails = async () => {
     try {
+      setDetailsLoading(true);
+      setDetailsError('');
       const response = await fetch(`/api/labs/${labId}`, {
         credentials: 'include'
       });
-      if (response.ok) {
-        const data = await response.json();
-        setLab(data.lab);
-        setLabUsers(data.users || []);
-      }
+      if (!response.ok) throw new Error('Unable to load this laboratory.');
+      const data = await response.json();
+      setLab(data.lab);
+      setLabUsers(data.users || []);
     } catch (error) {
       console.error('Error fetching lab details:', error);
+      setDetailsError('Unable to load this laboratory. Check your access or try again.');
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
   const fetchLabAssets = async () => {
     try {
       setLoading(true);
+      setAssetsError('');
       const response = await fetch(`/api/labs/${labId}/assets`, {
         credentials: 'include'
       });
-      if (response.ok) {
-        const data = await response.json();
-        setAssets(data.data || []);
-      }
+      if (!response.ok) throw new Error('Unable to load assets.');
+      const data = await response.json();
+      setAssets(data.data || []);
     } catch (error) {
       console.error('Error fetching assets:', error);
+      setAssetsError('Unable to load lab assets. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -73,10 +88,10 @@ export default function LabDashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      fetchLabDetails();
-      fetchLabAssets();
+      await Promise.all([fetchLabDetails(), fetchLabAssets()]);
     };
-    load();
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [labId]);
 
   const handleEdit = (asset: any) => {
@@ -97,10 +112,11 @@ export default function LabDashboardPage() {
         fetchLabAssets();
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to delete asset');
+        setActionError(data.error || 'Failed to delete asset');
       }
     } catch (error) {
       console.error('Error deleting asset:', error);
+      setActionError('Unable to delete asset. Please try again.');
     }
   };
 
@@ -114,16 +130,12 @@ export default function LabDashboardPage() {
     handleFormClose();
   };
 
-  if (!user || !lab) {
+  if (!user || detailsLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
+      <div className="campus-page min-h-screen"><main className="page-shell" role="status" aria-label="Loading laboratory"><div className="surface-card ui-loading h-56"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton w-3/4"/><div className="ui-skeleton w-1/2"/></div></main></div>
     );
   }
+  if (detailsError || !lab) return <div className="campus-page min-h-screen"><main className="page-shell"><Link href="/labs" className="ui-button ui-button-secondary mb-5">← Back to labs</Link><div role="alert" className="surface-card ui-empty"><h1>Laboratory unavailable</h1><p>{detailsError || 'This laboratory could not be found.'}</p><button onClick={fetchLabDetails} className="ui-button ui-button-primary mt-5">Try again</button></div></main></div>;
 
   const canDeleteAssets = user.role === 'admin' || user.role === 'main_technician';
   
@@ -138,26 +150,24 @@ export default function LabDashboardPage() {
   const maintenance = assets.filter(a => a.status === 'maintenance').length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="campus-page min-h-screen" data-institution={institutionBanner(lab.collegeCode ? { code: lab.collegeCode } : undefined)}>
+      <CampusBannerLabel institution={institutionBanner(lab.collegeCode ? { code: lab.collegeCode } : undefined)} name={lab.collegeCode} />
+      <main className="page-shell">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={() => router.push('/labs')}
-              className="text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/labs" className="ui-button ui-button-secondary shadow-sm">
               ← Back to Labs
-            </button>
+            </Link>
           </div>
           
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="surface-card p-5 sm:p-6">
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="text-4xl">🔬</span>
+                  <span className="rounded-xl bg-blue-50 p-3 text-blue-700"><UiIcon name="lab" className="h-7 w-7" /></span>
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">{lab.name}</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{lab.name}</h1>
                     <p className="text-gray-600">Lab Code: {lab.code}</p>
                   </div>
                 </div>
@@ -202,95 +212,46 @@ export default function LabDashboardPage() {
         </div>
 
         {/* Lab Team */}
-        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Lab Team</h2>
-          
-          {mainTechnician && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">👨‍🔬</span>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{mainTechnician.name}</p>
-                  <p className="text-sm text-gray-600">{mainTechnician.email}</p>
-                  {mainTechnician.employeeId && (
-                    <p className="text-xs text-gray-500">ID: {mainTechnician.employeeId}</p>
-                  )}
-                </div>
-                <span className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full">
-                  Main Technician
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {technicians.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Technicians</h3>
-              <div className="space-y-2">
-                {technicians.map((tech) => (
-                  <div key={tech.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <span className="text-xl">👨‍💼</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{tech.name}</p>
-                      <p className="text-sm text-gray-600">{tech.email}</p>
-                      {tech.employeeId && (
-                        <p className="text-xs text-gray-500">ID: {tech.employeeId}</p>
-                      )}
-                    </div>
-                    <span className="px-2 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
-                      Technician
-                    </span>
+        <div className="surface-card mb-8 p-5 sm:p-6">
+          <h2 className="section-title mb-3">Lab team</h2>
+          {mainTechnician || technicians.length > 0 ? (
+            <div className="divide-y divide-[var(--ui-line)]">
+              {[...(mainTechnician ? [mainTechnician] : []), ...technicians].map((member) => (
+                <div key={member.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900">{member.name}</p>
+                    <p className="muted-copy break-all text-sm">{member.email}</p>
+                    {member.employeeId && <p className="muted-copy mt-0.5 text-xs">ID: {member.employeeId}</p>}
                   </div>
-                ))}
-              </div>
+                  <span className="rounded-full border border-[var(--ui-line)] px-2.5 py-1 text-xs font-semibold">
+                    {member.role === 'main_technician' ? 'Main technician' : 'Technician'}
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
-          
-          {!mainTechnician && technicians.length === 0 && (
-            <p className="text-gray-500 text-center py-4">No team members assigned to this lab yet.</p>
-          )}
+          ) : <p className="muted-copy py-4">No team members are assigned to this lab yet.</p>}
         </div>
 
         {/* Asset Statistics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total Assets', value: totalAssets, icon: '📦', color: 'bg-blue-50 text-blue-600' },
-            { label: 'Available', value: available, icon: '✅', color: 'bg-green-50 text-green-600' },
-            { label: 'In Use', value: inUse, icon: '🔄', color: 'bg-purple-50 text-purple-600' },
-            { label: 'Maintenance', value: maintenance, icon: '🔧', color: 'bg-yellow-50 text-yellow-600' },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-                <div className={`text-4xl ${stat.color} rounded-full p-3`}>
-                  {stat.icon}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <StatsCards counts={{ total: totalAssets, available, inUse, maintenance }} />
 
         {/* Actions */}
-        <div className="mb-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Lab Assets</h2>
+        <div className="mb-5 flex flex-wrap justify-between items-center gap-3">
+          <h2 className="section-title">Lab assets</h2>
           <button
             onClick={() => setShowAssetForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+            className="ui-button ui-button-primary"
           >
-            <span className="text-xl">+</span>
-            Add Asset to Lab
+            <UiIcon name="plus" className="h-4 w-4" /> Add asset
           </button>
         </div>
 
         {/* Assets List */}
+        {actionError && <div role="alert" className="ui-alert mb-4">{actionError}</div>}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading assets...</p>
-          </div>
+          <div role="status" aria-label="Loading assets" className="surface-card ui-loading"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton w-full"/><div className="ui-skeleton w-3/4"/></div>
+        ) : assetsError ? (
+          <div role="alert" className="surface-card ui-empty"><h3>Assets unavailable</h3><p>{assetsError}</p><button onClick={fetchLabAssets} className="ui-button ui-button-secondary mt-5">Try again</button></div>
         ) : (
           <AssetList 
             assets={assets} 
@@ -304,8 +265,7 @@ export default function LabDashboardPage() {
 
         {/* Asset Form Modal */}
         {showAssetForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <ModalDialog title={editingAsset ? 'Edit asset' : 'Add asset'} onClose={handleFormClose}>
               <AssetForm
                 asset={editingAsset}
                 labs={[lab]}
@@ -313,10 +273,9 @@ export default function LabDashboardPage() {
                 onClose={handleFormClose}
                 onSuccess={handleFormSuccess}
               />
-            </div>
-          </div>
+          </ModalDialog>
         )}
-      </div>
+      </main>
     </div>
   );
 }

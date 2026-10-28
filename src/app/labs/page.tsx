@@ -1,19 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import LabManagement from '@/components/LabManagement';
 import AppHeader from '@/components/AppHeader';
-import { logout, useSession, type College, type Lab } from '@/lib/useSession';
+import ModalDialog from '@/components/ModalDialog';
+import UiIcon from '@/components/UiIcon';
+import { useSession, type College, type Lab } from '@/lib/useSession';
+import { institutionBanner } from '@/lib/institutionBanner';
+import CampusBannerLabel from '@/components/CampusBannerLabel';
 
 export default function LabsPage() {
-  const router = useRouter();
   const user = useSession();
   const [colleges, setColleges] = useState<College[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>('all');
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState('');
+  const labsRequestId = useRef(0);
 
   const fetchColleges = async () => {
     try {
@@ -30,8 +35,10 @@ export default function LabsPage() {
   };
 
   const fetchLabs = async (collegeId?: string) => {
+    const requestId = ++labsRequestId.current;
     try {
       setLoading(true);
+      setError('');
       const targetCollege = collegeId !== undefined ? collegeId : selectedCollegeId;
       const url = targetCollege && targetCollege !== 'all'
         ? `/api/labs?collegeId=${targetCollege}`
@@ -40,14 +47,16 @@ export default function LabsPage() {
       const response = await fetch(url, {
         credentials: 'include'
       });
-      if (response.ok) {
-        const data = await response.json();
-        setLabs(data.data || []);
-      }
+      if (!response.ok) throw new Error('Unable to load laboratories. Please try again.');
+      const data = await response.json();
+      if (requestId === labsRequestId.current) setLabs(data.data || []);
     } catch (error) {
-      console.error('Error fetching labs:', error);
+      if (requestId === labsRequestId.current) {
+        console.error('Error fetching labs:', error);
+        setError('Unable to load laboratories. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === labsRequestId.current) setLoading(false);
     }
   };
 
@@ -72,32 +81,16 @@ export default function LabsPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
+      <div className="campus-page min-h-screen"><main className="page-shell"><p role="status" className="surface-card mx-auto max-w-md p-8 text-center muted-copy">Loading laboratories…</p></main></div>
     );
   }
-
-  const roleColors = {
-    admin: 'bg-purple-100 text-purple-800 border-purple-200',
-    main_technician: 'bg-blue-100 text-blue-800 border-blue-200',
-    technician: 'bg-green-100 text-green-800 border-green-200',
-  };
-
-  const roleLabels = {
-    admin: 'System Administrator',
-    main_technician: 'Main Technician (Head)',
-    technician: 'Lab Technician',
-  };
 
   const currentCollege = colleges.find(c => c.id.toString() === selectedCollegeId);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="campus-page min-h-screen" data-institution={institutionBanner(currentCollege, selectedCollegeId === 'all')}>
+      <CampusBannerLabel institution={institutionBanner(currentCollege, selectedCollegeId === 'all')} name={currentCollege?.name} />
+      <main className="page-shell">
         {/* Header */}
         <AppHeader
           user={user}
@@ -110,42 +103,30 @@ export default function LabsPage() {
         />
 
         {/* Action Bar */}
-        <div className="mb-6 flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Scope:
-            </span>
-            <span className="text-sm font-semibold text-slate-800 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs">
-              {selectedCollegeId === 'all'
-                ? '🌐 All MAHE Institutions'
-                : `🏛️ ${currentCollege?.name || 'Selected Institution'}`}
-            </span>
-            <span className="text-xs text-slate-500 font-medium ml-2">
-              ({labs.length} laboratories found)
-            </span>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="section-title">Laboratories</h2>
+            <p className="muted-copy mt-1 text-sm">{selectedCollegeId === 'all' ? 'All MAHE institutions' : currentCollege?.name || 'Selected institution'} · {labs.length} {labs.length === 1 ? 'lab' : 'labs'}</p>
           </div>
 
           {canCreateLabs && (
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
+              className="ui-button ui-button-primary"
             >
-              <span className="text-xl">+</span>
-              Create New Lab
+              <UiIcon name="plus" className="h-4 w-4" /> Create lab
             </button>
           )}
         </div>
 
         {/* Labs Grid */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading labs...</p>
-          </div>
+          <div role="status" aria-label="Loading laboratories" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0,1,2].map((item) => <div key={item} className="surface-card ui-loading h-56"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton w-3/4"/><div className="ui-skeleton w-1/2"/></div>)}</div>
+        ) : error ? (
+          <div role="alert" className="surface-card ui-empty"><h2>Laboratories unavailable</h2><p>{error}</p><button onClick={() => fetchLabs()} className="ui-button ui-button-secondary mt-5">Try again</button></div>
         ) : labs.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
-            <div className="text-6xl mb-4">🏭</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No laboratories found</h3>
+          <div className="surface-card ui-empty">
+            <h3>No laboratories found</h3>
             <p className="text-gray-600 mb-4">
               {selectedCollegeId === 'all'
                 ? 'No laboratories registered yet in the system.'
@@ -154,35 +135,31 @@ export default function LabsPage() {
             {canCreateLabs && (
               <button
                 onClick={() => setShowForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
+                className="ui-button ui-button-primary mt-5"
               >
                 Create First Lab
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {labs.map((lab) => (
-              <div
+              <Link
+                href={`/labs/${lab.id}`}
                 key={lab.id}
-                onClick={() => router.push(`/labs/${lab.id}`)}
-                className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all cursor-pointer hover:border-blue-300 group"
+                className="surface-card group flex min-h-56 flex-col p-5 transition-colors sm:p-6"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="text-3xl p-2 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-                    🔬
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                <div className="mb-1 flex items-start justify-between gap-3">
+                  <h3 className="min-w-0 text-lg font-bold leading-snug text-gray-900 transition-colors group-hover:text-blue-600">
+                    {lab.name}
+                  </h3>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
                     lab.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
                     {lab.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                
-                <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
-                  {lab.name}
-                </h3>
-                <p className="font-mono text-xs text-blue-700 font-semibold mb-3">Code: {lab.code}</p>
+                <p className="mb-3 text-sm font-medium text-blue-700">Code {lab.code}</p>
                 
                 {lab.department && (
                   <div className="mb-3">
@@ -195,7 +172,7 @@ export default function LabsPage() {
                 <div className="space-y-1.5 text-sm text-gray-600 mt-2">
                   {lab.building && (
                     <div className="flex items-center gap-2">
-                      <span>📍</span>
+                      <UiIcon name="pin" className="h-4 w-4 shrink-0" />
                       <span>
                         {lab.building}
                         {lab.floor && `, ${lab.floor}`}
@@ -205,42 +182,38 @@ export default function LabsPage() {
                   )}
                   {lab.capacity && (
                     <div className="flex items-center gap-2">
-                      <span>👥</span>
+                      <UiIcon name="users" className="h-4 w-4 shrink-0" />
                       <span>Capacity: {lab.capacity} students</span>
                     </div>
                   )}
                 </div>
                 
-                <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center">
-                  <span className="text-xs font-medium text-gray-500">Dedicated Dashboard</span>
-                  <span className="text-sm font-semibold text-blue-600 group-hover:translate-x-1 transition-transform inline-block">
-                    Open Lab →
-                  </span>
+                <div className="mt-auto flex items-center justify-end border-t border-[var(--ui-line)] pt-4 text-sm font-semibold text-blue-600">
+                  Open lab →
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
 
         {/* Create Lab Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
+          <ModalDialog title="Create lab" onClose={() => setShowForm(false)}>
               <LabManagement
                 labs={labs}
                 colleges={colleges}
                 userRole={user.role}
                 defaultCollegeId={selectedCollegeId}
+                initialForm
                 onClose={() => setShowForm(false)}
                 onSuccess={() => {
                   fetchLabs(selectedCollegeId);
                   setShowForm(false);
                 }}
               />
-            </div>
-          </div>
+          </ModalDialog>
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -29,6 +29,7 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
     notes: asset?.notes || '',
   }));
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Re-sync the form when the parent supplies a different asset or default
   // lab. This is the render-phase "adjusting state when a prop changes"
@@ -61,6 +62,7 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setSaveError('');
 
     try {
       const url = asset ? `/api/assets/${asset.id}` : '/api/assets';
@@ -81,10 +83,13 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
 
       if (response.ok) {
         onSuccess();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setSaveError(data.error || 'The asset could not be saved. Review the fields and try again.');
       }
     } catch (error) {
       console.error('Error saving asset:', error);
-      alert('Failed to save asset');
+      setSaveError('The asset could not be saved. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -98,38 +103,44 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
   };
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">
-        {asset ? 'Edit Asset' : 'Add New Asset'}
-      </h2>
+    <div className="p-5 sm:p-6">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="section-title">{asset ? 'Edit asset' : 'Add asset'}</h2>
+          <p className="muted-copy mt-1 text-sm">Record the asset identity, lab, and current status.</p>
+        </div>
+        <button type="button" onClick={onClose} className="record-action">Close</button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-name" className="ui-label">
               Asset Name *
             </label>
             <input
+              id="asset-name"
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
               placeholder="e.g., Olympus BX53 Microscope"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-category" className="ui-label">
               Category *
             </label>
             <select
+              id="asset-category"
               name="category"
               value={formData.category}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
             >
               {ASSET_CATEGORIES.map(cat => (
                 <option key={cat.value} value={cat.value}>
@@ -140,15 +151,16 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-lab" className="ui-label">
               Lab *
             </label>
             <select
+              id="asset-lab"
               name="labId"
               value={formData.labId}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
             >
               <option value="">Select a lab</option>
               {labs.map(lab => (
@@ -160,72 +172,77 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-manufacturer" className="ui-label">
               Manufacturer
             </label>
             <input
+              id="asset-manufacturer"
               type="text"
               name="manufacturer"
               value={formData.manufacturer}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
               placeholder="e.g., Olympus"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-model" className="ui-label">
               Model
             </label>
             <input
+              id="asset-model"
               type="text"
               name="model"
               value={formData.model}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
               placeholder="e.g., BX53"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-serial" className="ui-label">
               Serial Number
             </label>
             <input
+              id="asset-serial"
               type="text"
               name="serialNumber"
               value={formData.serialNumber}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
               placeholder="e.g., SN123456"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-location" className="ui-label">
               Location *
             </label>
             <input
+              id="asset-location"
               type="text"
               name="location"
               value={formData.location}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
               placeholder="e.g., Lab A, Room 101"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-status" className="ui-label">
               Status *
             </label>
             <select
+              id="asset-status"
               name="status"
               value={formData.status}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
             >
               {STATUSES.map(status => (
                 <option key={status.value} value={status.value}>
@@ -236,58 +253,62 @@ export default function AssetForm({ asset, labs, defaultLabId, onClose, onSucces
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-purchase-date" className="ui-label">
               Purchase Date
             </label>
             <input
+              id="asset-purchase-date"
               type="date"
               name="purchaseDate"
               value={formData.purchaseDate}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="asset-warranty-expiry" className="ui-label">
               Warranty Expiry
             </label>
             <input
+              id="asset-warranty-expiry"
               type="date"
               name="warrantyExpiry"
               value={formData.warrantyExpiry}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="ui-field"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="asset-notes" className="ui-label">
             Notes
           </label>
           <textarea
+            id="asset-notes"
             name="notes"
             value={formData.notes}
             onChange={handleChange}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="ui-field"
             placeholder="Additional notes or comments..."
           />
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        {saveError && <p role="alert" className="ui-alert">{saveError}</p>}
+        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ui-line)] pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="ui-button ui-button-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="ui-button ui-button-primary"
           >
             {loading ? 'Saving...' : asset ? 'Update Asset' : 'Add Asset'}
           </button>

@@ -2,34 +2,37 @@
 
 import { useState, useEffect } from 'react';
 
-export default function PendingRequestsPanel({ userRole }: { userRole: string }) {
+export default function PendingRequestsPanel({ userRole, collegeId }: { userRole: string; collegeId: string }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const fetchRequests = async () => {
     try {
-      const res = await fetch('/api/asset-requests');
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data.data || []);
-      }
+      const query = userRole === 'admin' && collegeId !== 'all' ? `?collegeId=${encodeURIComponent(collegeId)}` : '';
+      const res = await fetch(`/api/asset-requests${query}`);
+      if (!res.ok) throw new Error('Unable to load borrow requests.');
+      const data = await res.json();
+      setRequests(data.data || []);
+      setError('');
     } catch (error) {
       console.error('Failed to fetch requests:', error);
+      setError('Borrow requests could not be loaded. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const load = async () => {
-      fetchRequests();
-    };
+    const load = async () => { await fetchRequests(); };
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collegeId, userRole]);
 
   const handleAction = async (id: number, action: 'approve' | 'reject') => {
     if (!confirm(`Are you sure you want to ${action} this request?`)) return;
-
+    setActionError('');
     try {
       const res = await fetch(`/api/asset-requests/${id}`, {
         method: 'PUT',
@@ -40,19 +43,23 @@ export default function PendingRequestsPanel({ userRole }: { userRole: string })
         fetchRequests();
       } else {
         const data = await res.json();
-        alert(data.error || `Failed to ${action} request`);
+        setActionError(data.error || `Unable to ${action} this request. Please try again.`);
       }
     } catch (error) {
       console.error(`Failed to ${action} request:`, error);
+      setActionError(`Unable to ${action} this request. Check your connection and try again.`);
     }
   };
 
-  if (loading) return <div className="p-4 text-center text-gray-500">Loading requests...</div>;
-  if (requests.length === 0) return <div className="p-4 text-center text-gray-500 bg-gray-50 rounded-lg border border-gray-200">No requests found.</div>;
+  if (loading) return <div role="status" className="surface-card ui-loading" aria-label="Loading borrow requests"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton"/><div className="ui-skeleton w-3/4"/></div>;
+  if (error) return <div role="alert" className="ui-alert">{error} <button type="button" onClick={() => { setLoading(true); setError(''); fetchRequests(); }} className="ml-2 underline font-semibold">Retry</button></div>;
+  if (requests.length === 0) return <div className="surface-card ui-empty"><h3>No borrow requests</h3><p>Requests for this institution will appear here.</p></div>;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-      <table className="w-full text-left text-sm text-gray-600">
+    <>
+    {actionError && <div role="alert" className="ui-alert mb-4">{actionError}</div>}
+    <div className="surface-card data-region" role="region" aria-label="Borrow requests table" tabIndex={0}>
+      <table className="data-table responsive-record-table min-w-[700px]">
         <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs">
           <tr>
             <th className="px-4 py-3">Asset</th>
@@ -66,15 +73,18 @@ export default function PendingRequestsPanel({ userRole }: { userRole: string })
           {requests.map(req => (
             <tr key={req.request.id} className="hover:bg-gray-50">
               <td className="px-4 py-3">
+                <span className="record-cell-label">Asset</span>
                 <div className="font-medium text-gray-900">{req.asset?.name}</div>
                 <div className="text-xs">SN: {req.asset?.serialNumber || 'N/A'}</div>
               </td>
               <td className="px-4 py-3">
+                <span className="record-cell-label">Requester</span>
                 <div className="font-medium text-gray-900">{req.requester?.name}</div>
                 <div className="text-xs">{req.requester?.email}</div>
               </td>
               <td className="px-4 py-3">
-                <span className={`px-2 py-1 text-[10px] font-semibold rounded-full uppercase ${
+                <span className="record-cell-label">Type</span>
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full uppercase ${
                   req.request.loanType === 'permanent' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                 }`}>
                   {req.request.loanType}
@@ -86,25 +96,27 @@ export default function PendingRequestsPanel({ userRole }: { userRole: string })
                 )}
               </td>
               <td className="px-4 py-3">
-                <span className={`px-2 py-1 text-[10px] font-semibold rounded-full uppercase ${
+                <span className="record-cell-label">Status</span>
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full uppercase ${
                   req.request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
                   req.request.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                 }`}>
                   {req.request.status}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right space-x-2">
+              <td className="record-row-actions px-4 py-3 text-right space-x-2">
+                <span className="record-cell-label">Actions</span>
                 {req.request.status === 'pending' && (userRole === 'admin' || userRole === 'main_technician') && (
                   <>
                     <button 
                       onClick={() => handleAction(req.request.id, 'approve')}
-                      className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium transition-colors"
+                      className="record-action"
                     >
                       Approve
                     </button>
                     <button 
                       onClick={() => handleAction(req.request.id, 'reject')}
-                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium transition-colors"
+                      className="record-action record-action-danger"
                     >
                       Reject
                     </button>
@@ -116,5 +128,6 @@ export default function PendingRequestsPanel({ userRole }: { userRole: string })
         </tbody>
       </table>
     </div>
+    </>
   );
 }
