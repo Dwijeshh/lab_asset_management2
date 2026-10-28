@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import UiIcon from '@/components/UiIcon';
 
 export interface College {
   id: number;
@@ -25,6 +26,7 @@ interface LabManagementProps {
   colleges?: College[];
   userRole?: string;
   defaultCollegeId?: string;
+  initialForm?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -34,10 +36,12 @@ export default function LabManagement({
   colleges = [],
   userRole,
   defaultCollegeId,
+  initialForm = false,
   onClose,
   onSuccess,
 }: LabManagementProps) {
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(initialForm);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -52,6 +56,7 @@ export default function LabManagement({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
 
     try {
@@ -82,28 +87,29 @@ export default function LabManagement({
         onSuccess();
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to create lab');
+        setError(data.error || 'Failed to create lab');
       }
     } catch (error) {
       console.error('Error creating lab:', error);
-      alert('Failed to create lab');
+      setError('Failed to create lab. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6">
+    <div className="p-5 sm:p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Lab Management</h2>
+          <h2 className="section-title">{showForm ? 'Create lab' : 'Lab management'}</h2>
           <p className="text-sm text-gray-500 mt-0.5">Manage laboratory facilities and departments</p>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Close lab management"
+          className="record-action"
         >
-          ✕
+          Close
         </button>
       </div>
 
@@ -112,17 +118,18 @@ export default function LabManagement({
           <div className="mb-6 flex justify-between items-center">
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
+              className="ui-button ui-button-primary"
             >
-              <span>➕</span> Add New Lab
+              Add new lab
             </button>
             <span className="text-sm text-gray-500">Total Labs: {labs.length}</span>
           </div>
 
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
             {labs.length === 0 ? (
-              <div className="bg-gray-50 rounded-xl p-8 text-center border border-dashed border-gray-300">
-                <p className="text-gray-500">No laboratories found for this institution view.</p>
+              <div className="ui-empty">
+                <h3>No laboratories in this view</h3>
+                <p>Create a lab to begin recording its assets.</p>
               </div>
             ) : (
               labs.map((lab) => (
@@ -149,8 +156,8 @@ export default function LabManagement({
                     </p>
                   )}
                   {(lab.building || lab.floor || lab.roomNumber) && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      📍 {lab.building}
+                    <p className="mt-1 flex items-start gap-1.5 text-sm text-gray-500">
+                      <UiIcon name="pin" className="mt-0.5 h-4 w-4 shrink-0" />{lab.building}
                       {lab.floor && `, ${lab.floor}`}
                       {lab.roomNumber && `, Room ${lab.roomNumber}`}
                     </p>
@@ -162,22 +169,24 @@ export default function LabManagement({
         </>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div role="alert" className="ui-alert">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {userRole === 'admin' && colleges.length > 0 && (
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="lab-college" className="ui-label">
                   Target Institution *
                 </label>
                 <select
+                  id="lab-college"
                   value={formData.collegeId}
                   onChange={(e) => setFormData({ ...formData, collegeId: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="ui-field"
                 >
                   <option value="">-- Select Institution --</option>
                   {colleges.map((c) => (
                     <option key={c.id} value={c.id.toString()}>
-                      🏛️ {c.name} ({c.code})
+                      {c.name} ({c.code})
                     </option>
                   ))}
                 </select>
@@ -185,94 +194,101 @@ export default function LabManagement({
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-name" className="ui-label">
                 Lab Name *
               </label>
               <input
+                id="lab-name"
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., Robotics & Mechatronics Lab"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-code" className="ui-label">
                 Lab Code *
               </label>
               <input
+                id="lab-code"
                 type="text"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., MIT-ROB-101"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-department" className="ui-label">
                 Department
               </label>
               <input
+                id="lab-department"
                 type="text"
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., Mechatronics Engineering"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-building" className="ui-label">
                 Building
               </label>
               <input
+                id="lab-building"
                 type="text"
                 value={formData.building}
                 onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., Academic Block 1"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-floor" className="ui-label">
                 Floor
               </label>
               <input
+                id="lab-floor"
                 type="text"
                 value={formData.floor}
                 onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., 2nd Floor"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-room" className="ui-label">
                 Room Number
               </label>
               <input
+                id="lab-room"
                 type="text"
                 value={formData.roomNumber}
                 onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., 204"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lab-capacity" className="ui-label">
                 Capacity (Students)
               </label>
               <input
+                id="lab-capacity"
                 type="number"
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="ui-field"
                 placeholder="e.g., 40"
               />
             </div>
@@ -282,14 +298,14 @@ export default function LabManagement({
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              className="ui-button ui-button-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+              className="ui-button ui-button-primary"
             >
               {loading ? 'Creating...' : 'Create Lab'}
             </button>

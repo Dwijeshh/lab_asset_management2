@@ -2,53 +2,60 @@
 
 import { useState, useEffect } from 'react';
 
-export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
+export default function ActiveLoansPanel({ userRole, collegeId }: { userRole: string; collegeId: string }) {
   const [loans, setLoans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const fetchLoans = async () => {
     try {
-      const res = await fetch('/api/asset-loans');
-      if (res.ok) {
-        const data = await res.json();
-        setLoans(data.data || []);
-      }
+      const query = userRole === 'admin' && collegeId !== 'all' ? `?collegeId=${encodeURIComponent(collegeId)}` : '';
+      const res = await fetch(`/api/asset-loans${query}`);
+      if (!res.ok) throw new Error('Unable to load loans.');
+      const data = await res.json();
+      setLoans(data.data || []);
+      setError('');
     } catch (error) {
       console.error('Failed to fetch loans:', error);
+      setError('Loans could not be loaded. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const load = async () => {
-      fetchLoans();
-    };
+    const load = async () => { await fetchLoans(); };
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collegeId, userRole]);
 
   const handleReturn = async (id: number) => {
     if (!confirm('Mark this asset as returned?')) return;
-
+    setActionError('');
     try {
       const res = await fetch(`/api/asset-loans/${id}`, { method: 'PUT' });
       if (res.ok) {
         fetchLoans();
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to return asset');
+        setActionError(data.error || 'Unable to mark this asset returned. Please try again.');
       }
     } catch (error) {
       console.error('Failed to return asset:', error);
+      setActionError('Unable to mark this asset returned. Check your connection and try again.');
     }
   };
 
-  if (loading) return <div className="p-4 text-center text-gray-500">Loading loans...</div>;
-  if (loans.length === 0) return <div className="p-4 text-center text-gray-500 bg-gray-50 rounded-lg border border-gray-200">No active loans.</div>;
+  if (loading) return <div role="status" className="surface-card ui-loading" aria-label="Loading loans"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton"/><div className="ui-skeleton w-3/4"/></div>;
+  if (error) return <div role="alert" className="ui-alert">{error} <button type="button" onClick={() => { setLoading(true); setError(''); fetchLoans(); }} className="ml-2 underline font-semibold">Retry</button></div>;
+  if (loans.length === 0) return <div className="surface-card ui-empty"><h3>No active loans</h3><p>Active loans for this institution will appear here.</p></div>;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-      <table className="w-full text-left text-sm text-gray-600">
+    <>
+    {actionError && <div role="alert" className="ui-alert mb-4">{actionError}</div>}
+    <div className="surface-card data-region" role="region" aria-label="Loans table" tabIndex={0}>
+      <table className="data-table responsive-record-table min-w-[950px]">
         <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs">
           <tr>
             <th className="px-4 py-3">Asset</th>
@@ -64,13 +71,15 @@ export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
           {loans.map(loan => (
             <tr key={loan.loan.id} className="hover:bg-gray-50">
               <td className="px-4 py-3">
+                <span className="record-cell-label">Asset</span>
                 <div className="font-medium text-gray-900">{loan.asset?.name}</div>
                 <div className="text-xs">SN: {loan.asset?.serialNumber || 'N/A'}</div>
               </td>
-              <td className="px-4 py-3 font-medium text-gray-900">{loan.borrower?.name}</td>
-              <td className="px-4 py-3">{loan.lab?.name || 'N/A'}</td>
-              <td className="px-4 py-3 text-xs">{new Date(loan.loan.loanDate).toLocaleDateString()}</td>
+              <td className="px-4 py-3 font-medium text-gray-900"><span className="record-cell-label">Borrower</span>{loan.borrower?.name}</td>
+              <td className="px-4 py-3"><span className="record-cell-label">Lab</span>{loan.lab?.name || 'N/A'}</td>
+              <td className="px-4 py-3 text-xs"><span className="record-cell-label">Loan date</span>{new Date(loan.loan.loanDate).toLocaleDateString()}</td>
               <td className="px-4 py-3 text-xs">
+                <span className="record-cell-label">Expected return</span>
                 {loan.loan.loanType === 'permanent' ? (
                   <span className="text-gray-400">—</span>
                 ) : loan.loan.expectedReturnDate ? (
@@ -87,17 +96,19 @@ export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
                 )}
               </td>
               <td className="px-4 py-3">
-                <span className={`px-2 py-1 text-[10px] font-semibold rounded-full uppercase ${
+                <span className="record-cell-label">Status</span>
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full uppercase ${
                   loan.loan.status === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
                 }`}>
                   {loan.loan.status}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="record-row-actions px-4 py-3 text-right">
+                <span className="record-cell-label">Actions</span>
                 {loan.loan.status === 'active' && loan.loan.loanType === 'temporary' && (userRole === 'admin' || userRole === 'main_technician') && (
                   <button 
                     onClick={() => handleReturn(loan.loan.id)}
-                    className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-xs font-medium transition-colors"
+                    className="record-action"
                   >
                     Mark Returned
                   </button>
@@ -111,5 +122,6 @@ export default function ActiveLoansPanel({ userRole }: { userRole: string }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }

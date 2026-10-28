@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { assets, labs } from '@/db/schema';
-import { desc, ilike, or, eq, and } from 'drizzle-orm';
+import { desc, ilike, or, eq, and, count } from 'drizzle-orm';
 import { validateSearchParams, validateAssetInput, ValidationError } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { assertCsrf, CsrfError } from '@/lib/csrf';
@@ -64,10 +64,19 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(assets.collegeId, collegeFilter));
     }
 
+    const filter = conditions.length === 0 ? undefined : conditions.length === 1 ? conditions[0] : and(...conditions);
+    const [totalResult, statusRows] = await Promise.all([
+      db.select({ total: count() }).from(assets).where(filter),
+      db.select({ status: assets.status, total: count() }).from(assets)
+        .where(collegeFilter === null ? undefined : eq(assets.collegeId, collegeFilter))
+        .groupBy(assets.status),
+    ]);
+    const statusCounts = Object.fromEntries(statusRows.map(row => [row.status, row.total]));
+
     if (conditions.length > 0) {
       // @ts-ignore - Drizzle types can be complex
       allAssets = await query
-        .where(conditions.length === 1 ? conditions[0] : and(...conditions))
+        .where(filter)
         .orderBy(desc(assets.createdAt))
         .limit(params.limit)
         .offset((params.page - 1) * params.limit);
@@ -83,7 +92,14 @@ export async function GET(request: NextRequest) {
       pagination: {
         page: params.page,
         limit: params.limit,
-      }
+        total: totalResult[0]?.total ?? 0,
+      },
+      statusCounts: {
+        total: statusRows.reduce((sum, row) => sum + row.total, 0),
+        available: statusCounts.available ?? 0,
+        inUse: statusCounts.in_use ?? 0,
+        maintenance: statusCounts.maintenance ?? 0,
+      },
     });
   } catch (error) {
     if (error instanceof RateLimitError) {

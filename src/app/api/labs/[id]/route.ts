@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { labs, users } from '@/db/schema';
+import { colleges, labs, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getSession, canAccessCollege } from '@/lib/auth-jwt';
 import { logger, sanitizeError } from '@/lib/logger';
@@ -57,6 +57,12 @@ export async function GET(
       );
     }
 
+    const [college] = await db
+      .select({ code: colleges.code })
+      .from(colleges)
+      .where(eq(colleges.id, lab.collegeId))
+      .limit(1);
+
     // Get users assigned to this lab
     const labUsers = await db
       .select({
@@ -70,7 +76,7 @@ export async function GET(
       .where(eq(users.labId, labId));
 
     return NextResponse.json({
-      lab,
+      lab: { ...lab, collegeCode: college?.code },
       users: labUsers,
     });
   } catch (error) {

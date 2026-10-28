@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { assets, assetRequests, users, notifications, auditLogs } from '@/db/schema';
 import { eq, and, desc, or } from 'drizzle-orm';
 import { validatePagination } from '@/lib/validation';
-import { getSession } from '@/lib/auth-jwt';
+import { getSession, resolveCollegeFilter } from '@/lib/auth-jwt';
 import { logger, sanitizeError } from '@/lib/logger';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { assertCsrf, CsrfError } from '@/lib/csrf';
@@ -17,6 +17,12 @@ export async function GET(request: NextRequest) {
 
     const { page, limit } = validatePagination(request.nextUrl.searchParams);
     const user = session.user;
+    let collegeFilter: number | null;
+    try {
+      collegeFilter = resolveCollegeFilter(user, request.nextUrl.searchParams.get('collegeId'));
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid collegeId' }, { status: 400 });
+    }
     let requests;
 
     if (user.role === 'admin') {
@@ -36,6 +42,7 @@ export async function GET(request: NextRequest) {
         .from(assetRequests)
         .leftJoin(assets, eq(assetRequests.assetId, assets.id))
         .leftJoin(users, eq(assetRequests.requesterId, users.id))
+        .where(collegeFilter === null ? undefined : eq(assetRequests.ownerCollegeId, collegeFilter))
         .orderBy(desc(assetRequests.createdAt))
         .limit(limit)
         .offset((page - 1) * limit);

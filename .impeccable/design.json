@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-27T15:22:55Z",
+  "title": "Design System: Lab Asset Manager",
+  "extensions": {
+    "colorMeta": {
+      "action-terracotta": { "role": "primary", "displayName": "Action Terracotta", "canonical": "#a64f35", "tonalRamp": ["#3a1d15", "#692d1e", "#873e29", "#a64f35", "#c37558", "#dda58d", "#efd6c7", "#fae8dc"] },
+      "section-indigo": { "role": "secondary", "displayName": "Section Indigo", "canonical": "#4f46e5", "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4f46e5", "#818cf8", "#a5b4fc", "#c7d2fe", "#eef2ff"] },
+      "success-green": { "role": "tertiary", "displayName": "Success Green", "canonical": "#16a34a", "tonalRamp": ["#052e16", "#14532d", "#166534", "#16a34a", "#4ade80", "#86efac", "#bbf7d0", "#f0fdf4"] },
+      "danger-red": { "role": "tertiary", "displayName": "Danger Red", "canonical": "#dc2626", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#dc2626", "#f87171", "#fca5a5", "#fecaca", "#fef2f2"] },
+      "canvas": { "role": "neutral", "displayName": "Warm Canvas", "canonical": "#f5eee5", "tonalRamp": ["#302824", "#40332c", "#63564e", "#77675d", "#b8937f", "#d8c7b8", "#e4d6c8", "#f5eee5"] },
+      "surface": { "role": "neutral", "displayName": "Ivory Surface", "canonical": "#fffaf5", "tonalRamp": ["#302824", "#40332c", "#63564e", "#77675d", "#b8937f", "#d8c7b8", "#f5eee5", "#fffaf5"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Page headline", "purpose": "Dashboard and page titles." },
+      "title": { "displayName": "Section title", "purpose": "Dialogs and major sections." },
+      "body": { "displayName": "Body", "purpose": "Form values and descriptive text." },
+      "label": { "displayName": "Label", "purpose": "Fields, tabs, and table headers." }
+    },
+    "shadows": [
+      { "name": "panel", "value": "0 2px 10px rgba(65, 42, 31, .07)", "purpose": "Soft separation for ivory panels." },
+      { "name": "dialog", "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)", "purpose": "Temporary modal task above the dashboard." }
+    ],
+    "motion": [
+      { "name": "color-state", "value": "150ms ease", "purpose": "Hover and active color transitions on controls." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main asset action.",
+      "html": "<button class=\"ds-btn-primary\">Add Asset</button>",
+      "css": ".ds-btn-primary{background:#a64f35;color:#fff;border:0;border-radius:8px;padding:8px 16px;font:500 16px/1.5 system-ui,sans-serif;cursor:pointer;transition:background 150ms ease}.ds-btn-primary:hover{background:#873e29}.ds-btn-primary:focus-visible{outline:2px solid #a64f35;outline-offset:2px}.ds-btn-primary:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "Management Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral supporting and navigation action.",
+      "html": "<button class=\"ui-button ui-button-secondary\">View Labs</button>",
+      "css": ".ui-button-secondary{border:1px solid #d8c7b8;background:#fffaf5;color:#40332c;border-radius:10px;padding:10px 16px}.ui-button-secondary:hover{background:#f8eee5}.ui-button-secondary:focus-visible{outline:3px solid #a64f35;outline-offset:2px}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Asset search and form entry.",
+      "html": "<input class=\"ds-input\" aria-label=\"Search assets\" placeholder=\"Search assets...\">",
+      "css": ".ds-input{box-sizing:border-box;width:100%;background:#fffdf9;color:#302824;border:1px solid #cbb9aa;border-radius:8px;padding:8px 12px;font:400 16px/1.5 system-ui,sans-serif}.ds-input:focus-visible{outline:2px solid #a64f35;outline-offset:1px}"
+    },
+    {
+      "name": "Data Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Inventory summary or table container.",
+      "html": "<div class=\"ds-card\"><strong>Available</strong><p>12 assets</p></div>",
+      "css": ".surface-card{background:#fffaf5;color:#302824;border:1px solid #e4d6c8;border-radius:16px;padding:24px;box-shadow:0 2px 10px rgba(65,42,31,.07);font-family:system-ui,sans-serif}.surface-card strong{font-weight:600}.surface-card p{margin:8px 0 0;color:#63564e}"
+    },
+    {
+      "name": "Dashboard Tab",
+      "kind": "nav",
+      "description": "Selected dashboard section.",
+      "html": "<button class=\"ds-tab\" aria-current=\"page\">Assets Inventory</button>",
+      "css": ".ds-tab{background:transparent;color:#87432e;border:0;border-bottom:2px solid #a64f35;padding:0 4px 16px;font:500 14px/1.5 system-ui,sans-serif;cursor:pointer}.ds-tab:hover{color:#692d1e}.ds-tab:focus-visible{outline:2px solid #a64f35;outline-offset:2px}"
+    },
+    {
+      "name": "Available Status",
+      "kind": "chip",
+      "description": "Text-backed asset availability state.",
+      "html": "<span class=\"ds-status\">Available</span>",
+      "css": ".ds-status{display:inline-flex;background:#dcfce7;color:#166534;border-radius:9999px;padding:4px 8px;font:600 12px/1.25 system-ui,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Campus Console",
+    "overview": "The interface is calm, structured, and modern. The MAHE logo and campus photograph establish identity on login and all signed-in routes. Terracotta marks primary actions and selected sections. Ivory panels sit on a warm stone canvas, with modest shadows, rounded controls, and compact status chips. Wide tables scroll within their own region on narrow screens.",
+    "keyCharacteristics": ["Quiet warm surfaces with restrained terracotta accents.", "Clear labels and visible action states for repetitive administrative work.", "Dense data where needed, with room around major sections."],
+    "rules": [
+      { "name": "The Quiet Accent Rule", "body": "Use accent color to identify an action or state; keep ordinary inventory content on neutral surfaces.", "section": "colors" },
+      { "name": "The Local Scroll Rule", "body": "A wide table owns its horizontal scroll; the entire page should remain within the viewport.", "section": "layout" }
+    ],
+    "dos": ["Do keep labels, empty states, and errors explicit about the current view and recovery action.", "Do preserve readable status text alongside status color.", "Do use the MAHE logo and name already present in the app header."],
+    "donts": ["Don't let institution names or wide tables push the page beyond the phone viewport.", "Don't use a quiet empty state to conceal a failed request.", "Don't let the campus photo compete with readable content below the banner."]
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import ModalDialog from '@/components/ModalDialog';
 
 interface BorrowRequestModalProps {
   asset: any;
@@ -43,109 +44,42 @@ export default function BorrowRequestModal({ asset, onClose, onSuccess }: Borrow
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-gray-100">
-        <div className="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <span>📝</span> Request Asset
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            ✕
-          </button>
+    <ModalDialog title="Request asset" onClose={onClose}>
+      <div className="p-5 sm:p-6">
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div><h2 className="section-title">Request asset</h2><p className="muted-copy mt-1 text-sm">Choose how your lab needs this asset.</p></div>
+          <button type="button" onClick={onClose} aria-label="Close request" className="record-action">Close</button>
         </div>
-
-        <form onSubmit={handleSubmit} className="p-5">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
-              {error}
-            </div>
-          )}
-
-          <div className="mb-4">
-            <div className="text-sm text-gray-500 mb-1">Asset Details</div>
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <div className="font-semibold text-gray-900">{asset.name}</div>
-              <div className="text-sm text-gray-600">SN: {asset.serialNumber || 'N/A'}</div>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {error && <div role="alert" className="ui-alert">{error}</div>}
+          <div className="border-b border-[var(--ui-line)] pb-4">
+            <p className="font-semibold">{asset.name}</p>
+            <p className="muted-copy mt-1 text-sm">Serial number: {asset.serialNumber || 'Not recorded'}</p>
           </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="loanType"
-                  value="temporary"
-                  checked={loanType === 'temporary'}
-                  onChange={(e) => setLoanType(e.target.value)}
-                  className="text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="text-sm text-gray-800">Temporary Loan</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="loanType"
-                  value="permanent"
-                  checked={loanType === 'permanent'}
-                  onChange={(e) => setLoanType(e.target.value)}
-                  className="text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="text-sm text-gray-800">Permanent Transfer</span>
-              </label>
+          <fieldset>
+            <legend className="ui-label">Request type</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="request-option"><input type="radio" name="loanType" value="temporary" checked={loanType === 'temporary'} onChange={(e) => setLoanType(e.target.value)} />Temporary loan</label>
+              <label className="request-option"><input type="radio" name="loanType" value="permanent" checked={loanType === 'permanent'} onChange={(e) => setLoanType(e.target.value)} />Permanent transfer</label>
             </div>
-          </div>
-
+          </fieldset>
           {loanType === 'temporary' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Expected Return Date
-              </label>
-              <input
-                type="date"
-                value={expectedReturnDate}
-                min={new Date().toISOString().split('T')[0]}
-                onChange={(e) => setExpectedReturnDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                When you plan to return the asset. The approver can adjust this.
-              </p>
+            <div>
+              <label htmlFor="expected-return" className="ui-label">Expected return date</label>
+              <input id="expected-return" type="date" value={expectedReturnDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setExpectedReturnDate(e.target.value)} className="ui-field" />
+              <p className="ui-hint mt-1">When you plan to return it. The approver can adjust this.</p>
             </div>
           )}
-
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes / Reason (Optional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-              rows={3}
-              placeholder="Why do you need this asset?"
-            />
+          <div>
+            <label htmlFor="request-notes" className="ui-label">Reason or notes (optional)</label>
+            <textarea id="request-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="ui-field" rows={3} placeholder="Why does your lab need this asset?" />
           </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? 'Submitting...' : 'Submit Request'}
-            </button>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ui-line)] pt-4">
+            <button type="button" onClick={onClose} className="ui-button ui-button-secondary">Cancel</button>
+            <button type="submit" disabled={loading} className="ui-button ui-button-primary">{loading ? 'Submitting…' : 'Submit request'}</button>
           </div>
         </form>
       </div>
-    </div>
+    </ModalDialog>
   );
 }
