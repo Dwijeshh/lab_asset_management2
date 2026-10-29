@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { makeClient, login, rejectAllPending, createAsset, cleanupAsset } from '../helpers';
 
 let tech1: ReturnType<typeof makeClient>;
@@ -72,11 +72,16 @@ describe('record-level isolation', () => {
     kmcAssetId = all.body.data.find((a: any) => a.collegeId === kmcCollegeId)?.id;
     const kmcLabs = await admin.get(`/api/labs?collegeId=${kmcCollegeId}`);
     kmcLabId = kmcLabs.body.data[0].id;
-    const mit = await tech1.get('/api/assets');
-    mitAsset = mit.body.data.find((a: any) => a.status === 'available');
+    // Use a disposable record: the update API clears optional fields omitted
+    // from a PUT request, so moving a seeded asset would change real inventory.
+    mitAsset = await createAsset(tech1, otherMitLabId);
     if (!kmcAssetId || !kmcLabId || !mitAsset) {
       throw new Error('seed data missing for isolation tests');
     }
+  });
+
+  afterAll(async () => {
+    if (mitAsset) await cleanupAsset(mitAsset.id);
   });
 
   it('hides another college\'s asset (404, not 403)', async () => {
