@@ -4,14 +4,14 @@ import { db } from '@/db';
 import { assets, colleges, labs } from '@/db/schema';
 import { getSession, resolveCollegeFilter, canAccessCollege } from '@/lib/auth-jwt';
 import { parseExportColumns } from '@/lib/asset-export';
-import { makePdf, makePrintHtml, makeWord, makeZip, type AssetReport } from '@/lib/asset-export-files';
+import { makeCsv, makePdf, makePrintHtml, makeWord, makeZip, type AssetReport } from '@/lib/asset-export-files';
 import { validateSearchParams } from '@/lib/validation';
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { logger, sanitizeError } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 const MAX_EXPORT_ASSETS = 2000;
-const FORMATS = ['pdf', 'docx', 'zip', 'print'] as const;
+const FORMATS = ['pdf', 'docx', 'csv', 'zip', 'print'] as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get('format');
     if (!FORMATS.some(value => value === format)) {
-      return NextResponse.json({ error: 'Choose PDF, Word, ZIP, or Print.' }, { status: 400 });
+      return NextResponse.json({ error: 'Choose PDF, Word, CSV, ZIP, or Print.' }, { status: 400 });
     }
     const columns = parseExportColumns(searchParams.get('columns'));
     if (!columns) return NextResponse.json({ error: 'Choose at least one valid asset field.' }, { status: 400 });
@@ -88,11 +88,11 @@ export async function GET(request: NextRequest) {
       return new Response(makePrintHtml(report), { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
     }
 
-    const data = format === 'pdf' ? await makePdf(report) : format === 'docx' ? await makeWord(report) : await makeZip(report, basename);
-    const extension = format === 'docx' ? 'docx' : format === 'zip' ? 'zip' : 'pdf';
+    const data = format === 'pdf' ? await makePdf(report) : format === 'docx' ? await makeWord(report) : format === 'csv' ? makeCsv(report) : await makeZip(report, basename);
+    const extension = format === 'docx' ? 'docx' : format === 'csv' ? 'csv' : format === 'zip' ? 'zip' : 'pdf';
     const contentType = format === 'docx'
       ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      : format === 'zip' ? 'application/zip' : 'application/pdf';
+      : format === 'csv' ? 'text/csv; charset=utf-8' : format === 'zip' ? 'application/zip' : 'application/pdf';
     return new Response(new Uint8Array(data), {
       headers: { ...headers, 'Content-Type': contentType, 'Content-Disposition': `attachment; filename="${basename}.${extension}"` },
     });

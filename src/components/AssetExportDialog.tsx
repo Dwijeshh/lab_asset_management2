@@ -4,7 +4,7 @@ import { useState } from 'react';
 import ModalDialog from '@/components/ModalDialog';
 import { DEFAULT_EXPORT_COLUMNS, EXPORT_COLUMNS, type ExportColumn } from '@/lib/asset-export';
 
-type Format = 'pdf' | 'docx' | 'zip';
+type Format = 'pdf' | 'docx' | 'csv' | 'zip';
 
 export default function AssetExportDialog({
   onClose, filters, scope, count,
@@ -88,10 +88,11 @@ export default function AssetExportDialog({
         <div className="mt-6 flex flex-wrap gap-2">
           <button type="button" disabled={busy !== null} onClick={() => void download('pdf')} className="ui-button ui-button-primary">{busy === 'pdf' ? 'Preparing PDF…' : 'Download PDF'}</button>
           <button type="button" disabled={busy !== null} onClick={() => void download('docx')} className="ui-button ui-button-secondary">{busy === 'docx' ? 'Preparing Word…' : 'Download Word'}</button>
+          <button type="button" disabled={busy !== null} onClick={() => void download('csv')} className="ui-button ui-button-secondary">{busy === 'csv' ? 'Preparing CSV…' : 'Download CSV'}</button>
           <button type="button" disabled={busy !== null} onClick={() => void download('zip')} className="ui-button ui-button-secondary">{busy === 'zip' ? 'Preparing ZIP…' : 'Download ZIP'}</button>
           <button type="button" disabled={busy !== null} onClick={print} className="ui-button ui-button-secondary">Print list</button>
         </div>
-        <p className="ui-hint mt-3">ZIP contains the PDF and Word versions.</p>
+        <p className="ui-hint mt-3">ZIP contains the PDF, Word, and CSV versions.</p>
       </div>
     </ModalDialog>
   );

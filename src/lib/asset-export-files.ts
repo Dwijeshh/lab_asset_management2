@@ -69,12 +69,26 @@ export async function makeWord(report: AssetReport): Promise<Buffer> {
   return Packer.toBuffer(document);
 }
 
+function csvCell(value: string): string {
+  // Spreadsheet apps may evaluate untrusted asset names or notes as formulas.
+  const safe = /^\s*[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+export function makeCsv(report: AssetReport): Buffer {
+  const header = report.columns.map(column => csvCell(exportLabel(column))).join(',');
+  const rows = report.rows.map(row => report.columns.map(column => csvCell(exportValue(row, column))).join(','));
+  // UTF-8 BOM helps Excel open names and notes without losing non-ASCII text.
+  return Buffer.from(`\uFEFF${[header, ...rows].join('\r\n')}\r\n`, 'utf8');
+}
+
 export async function makeZip(report: AssetReport, basename: string): Promise<Buffer> {
   const [pdf, word] = await Promise.all([makePdf(report), makeWord(report)]);
   const zip = new JSZip();
   zip.file(`${basename}.pdf`, pdf);
   zip.file(`${basename}.docx`, word);
-  zip.file('README.txt', `${report.title}\n${reportMeta(report)}\n\nThis archive contains the same asset list in PDF and Word formats.\n`);
+  zip.file(`${basename}.csv`, makeCsv(report));
+  zip.file('README.txt', `${report.title}\n${reportMeta(report)}\n\nThis archive contains the same asset list in PDF, Word, and CSV formats.\n`);
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 

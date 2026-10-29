@@ -47,7 +47,7 @@ describe('asset list exports', () => {
     expect(html).not.toContain('<dt>Location</dt>');
   });
 
-  it('downloads readable PDF, Word, and ZIP files', async () => {
+  it('downloads readable PDF, Word, CSV, and ZIP files', async () => {
     const query = `collegeId=all&labId=${kmcLabId}&columns=name,serialNumber,location`;
     const pdf = await requestExport(admin, `format=pdf&${query}`);
     expect(pdf.status).toBe(200);
@@ -64,12 +64,22 @@ describe('asset list exports', () => {
     expect(xml).toContain('Location');
     expect(xml).not.toContain('Purchase date');
 
+    const csvResponse = await requestExport(admin, `format=csv&${query}`);
+    expect(csvResponse.status).toBe(200);
+    expect(csvResponse.headers.get('content-type')).toContain('text/csv');
+    expect(csvResponse.headers.get('content-disposition')).toContain('.csv');
+    const csv = await csvResponse.text();
+    expect(csv).toContain('"Asset name","Location","Serial number"');
+    expect(csv).toContain('KMC-SIM-PC-001');
+    expect(csv).not.toContain('Purchase date');
+
     const archive = await requestExport(admin, `format=zip&${query}`);
     expect(archive.status).toBe(200);
     const zip = await JSZip.loadAsync(Buffer.from(await archive.arrayBuffer()));
     const names = Object.keys(zip.files);
     expect(names.some(name => name.endsWith('.pdf'))).toBe(true);
     expect(names.some(name => name.endsWith('.docx'))).toBe(true);
+    expect(names.some(name => name.endsWith('.csv'))).toBe(true);
     expect(names).toContain('README.txt');
   });
 });
