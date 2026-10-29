@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
 
     await db.insert(auditLogs).values({
       userId: user.id,
+      collegeId: user.collegeId,
       action: 'UPDATE',
       entityType: 'user',
       entityId: user.id,

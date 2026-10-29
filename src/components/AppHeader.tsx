@@ -9,10 +9,10 @@ import type { College } from '@/lib/useSession';
 import { logout, ROLE_COLORS, ROLE_LABELS } from '@/lib/useSession';
 import type { Role } from '@/lib/assets';
 
-const ADMIN_NAV = [
+const STAFF_NAV = [
   { label: 'Dashboard', href: '/' },
   { label: 'Labs', href: '/labs' },
-  { label: 'Users', href: '/users' },
+  { label: 'Activity log', href: '/logs' },
 ];
 
 interface AppHeaderProps {
@@ -71,9 +71,9 @@ export default function AppHeader({
             {title}
           </h1>
           <p className="mt-0.5 text-gray-600 font-medium text-sm">{subtitle}</p>
-          {user.role === 'admin' && (
+          {(user.role === 'admin' || user.role === 'main_technician') && (
           <nav aria-label="Primary" className="mt-3 flex flex-wrap gap-1.5">
-              {ADMIN_NAV.map((item) => (
+              {[...STAFF_NAV, ...(user.role === 'admin' ? [{ label: 'Users', href: '/users' }] : [])].map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

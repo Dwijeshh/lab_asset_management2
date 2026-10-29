@@ -6,6 +6,7 @@ import { getSession, canCreateLabs, resolveCollegeFilter, parseCollegeIdParam } 
 import { rateLimit, getClientIdentifier, RateLimitError } from '@/lib/rateLimit';
 import { assertCsrf, CsrfError } from '@/lib/csrf';
 import { logger, sanitizeError } from '@/lib/logger';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -142,6 +143,14 @@ export async function POST(request: NextRequest) {
     }).returning();
 
     logger.info('Lab created', { labId: newLab[0].id, userId: session.user.id });
+    await logAudit({
+      userId: session.user.id,
+      collegeId: targetCollegeId,
+      action: 'CREATE',
+      entityType: 'lab',
+      entityId: newLab[0].id,
+      changes: { name: newLab[0].name, code: newLab[0].code },
+    });
 
     return NextResponse.json(newLab[0], { status: 201 });
   } catch (error) {

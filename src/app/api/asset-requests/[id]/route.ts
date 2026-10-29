@@ -145,6 +145,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Audit trail
     await db.insert(auditLogs).values({
       userId: user.id,
+      collegeId: existingRequest.ownerCollegeId,
       action: action === 'approve' ? 'APPROVE' : 'REJECT',
       entityType: 'asset_request',
       entityId: requestId,

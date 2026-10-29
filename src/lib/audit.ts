@@ -14,6 +14,8 @@ import { logger } from '@/lib/logger';
 
 export interface AuditEntry {
   userId: number | null;
+  collegeId: number | null;
+  relatedCollegeId?: number | null;
   action: string;
   entityType: string;
   entityId: number;
@@ -24,6 +26,8 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
   try {
     await db.insert(auditLogs).values({
       userId: entry.userId,
+      collegeId: entry.collegeId,
+      relatedCollegeId: entry.relatedCollegeId ?? null,
       action: entry.action,
       entityType: entry.entityType,
       entityId: entry.entityId,

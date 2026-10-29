@@ -132,6 +132,8 @@ export async function PUT(
 
     await db.insert(auditLogs).values({
       userId: session.user.id,
+      collegeId: existing.collegeId,
+      relatedCollegeId: existing.collegeId !== collegeId ? collegeId : null,
       action: 'UPDATE',
       entityType: 'user',
       entityId: userId,

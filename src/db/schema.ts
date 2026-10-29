@@ -102,6 +102,8 @@ export const assets = pgTable('assets', {
 export const auditLogs = pgTable('audit_logs', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id),
+  collegeId: integer('college_id').references(() => colleges.id),
+  relatedCollegeId: integer('related_college_id').references(() => colleges.id),
   action: varchar('action', { length: 50 }).notNull(), // CREATE, UPDATE, DELETE, LOGIN, etc.
   entityType: varchar('entity_type', { length: 50 }).notNull(), // asset, lab, user
   entityId: integer('entity_id').notNull(),
@@ -109,7 +111,10 @@ export const auditLogs = pgTable('audit_logs', {
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+}, (table) => [
+  index('audit_college_created_idx').on(table.collegeId, table.createdAt),
+  index('audit_related_college_idx').on(table.relatedCollegeId),
+]);
 
 export type College = typeof colleges.$inferSelect;
 export type NewCollege = typeof colleges.$inferInsert;

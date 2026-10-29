@@ -202,6 +202,7 @@ export async function POST(request: NextRequest) {
     logger.info('Asset created', { assetId: newAsset[0].id, name: newAsset[0].name });
     await logAudit({
       userId: session.user.id,
+      collegeId,
       action: 'CREATE',
       entityType: 'asset',
       entityId: newAsset[0].id,
