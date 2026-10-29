@@ -12,6 +12,8 @@ import { useSession, type College, type Lab } from '@/lib/useSession';
 import { institutionBanner } from '@/lib/institutionBanner';
 import CampusBannerLabel from '@/components/CampusBannerLabel';
 import BorrowRequestModal from '@/components/BorrowRequestModal';
+import DeviceRequestModal from '@/components/DeviceRequestModal';
+import DeviceRequestsPanel from '@/components/DeviceRequestsPanel';
 import PendingRequestsPanel from '@/components/PendingRequestsPanel';
 import ActiveLoansPanel from '@/components/ActiveLoansPanel';
 import ModalDialog from '@/components/ModalDialog';
@@ -38,6 +40,7 @@ export default function HomePage() {
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'requests' | 'loans'>('assets');
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showDeviceRequestModal, setShowDeviceRequestModal] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [requestingAsset, setRequestingAsset] = useState<any>(null);
   const labsRequestId = useRef(0);
@@ -283,6 +286,7 @@ export default function HomePage() {
                 }}
               />
               <div className="flex flex-wrap gap-2">
+                {user.labId && <button type="button" onClick={() => setShowDeviceRequestModal(true)} className="ui-button ui-button-primary"><UiIcon name="asset" className="h-4 w-4" />Request devices</button>}
                 <button type="button" onClick={() => setShowExport(true)} disabled={loading || Boolean(assetsError)} className="ui-button ui-button-secondary">
                   Print / download list
                 </button>
@@ -346,7 +350,12 @@ export default function HomePage() {
         )}
 
         {activeTab === 'requests' && (
-          <PendingRequestsPanel key={selectedCollegeId} userRole={user.role} collegeId={selectedCollegeId} />
+          <>
+            {user.labId && <button type="button" onClick={() => setShowDeviceRequestModal(true)} className="ui-button ui-button-primary mb-5"><UiIcon name="asset" className="h-4 w-4" />Request devices</button>}
+            <DeviceRequestsPanel key={`device-${selectedCollegeId}`} userRole={user.role} collegeId={selectedCollegeId} />
+            <h2 className="section-title mb-3">Individual asset requests</h2>
+            <PendingRequestsPanel key={selectedCollegeId} userRole={user.role} collegeId={selectedCollegeId} />
+          </>
         )}
 
         {activeTab === 'loans' && (
@@ -354,6 +363,7 @@ export default function HomePage() {
         )}
 
         {/* Borrow Request Modal */}
+        {showDeviceRequestModal && <DeviceRequestModal onClose={() => setShowDeviceRequestModal(false)} onSuccess={() => { setShowDeviceRequestModal(false); setActiveTab('requests'); }} />}
         {showExport && (
           <AssetExportDialog
             onClose={() => setShowExport(false)}

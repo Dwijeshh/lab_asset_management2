@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
 import { assets, assetRequests, users, notifications, auditLogs } from '@/db/schema';
-import { eq, and, desc, or } from 'drizzle-orm';
+import { eq, and, desc, or, isNull } from 'drizzle-orm';
 import { validatePagination } from '@/lib/validation';
 import { getSession, resolveCollegeFilter } from '@/lib/auth-jwt';
 import { logger, sanitizeError } from '@/lib/logger';
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         .from(assetRequests)
         .leftJoin(assets, eq(assetRequests.assetId, assets.id))
         .leftJoin(users, eq(assetRequests.requesterId, users.id))
-        .where(collegeFilter === null ? undefined : eq(assetRequests.ownerCollegeId, collegeFilter))
+        .where(and(isNull(assetRequests.deviceRequestId), collegeFilter === null ? undefined : eq(assetRequests.ownerCollegeId, collegeFilter)))
         .orderBy(desc(assetRequests.createdAt))
         .limit(limit)
         .offset((page - 1) * limit);
@@ -63,12 +63,13 @@ export async function GET(request: NextRequest) {
         .from(assetRequests)
         .leftJoin(assets, eq(assetRequests.assetId, assets.id))
         .leftJoin(users, eq(assetRequests.requesterId, users.id))
-        .where(
+        .where(and(
+          isNull(assetRequests.deviceRequestId),
           or(
             eq(assetRequests.ownerCollegeId, user.collegeId),
             eq(assetRequests.requesterId, user.id)
           )
-        )
+        ))
         .orderBy(desc(assetRequests.createdAt))
         .limit(limit)
         .offset((page - 1) * limit);
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
         .from(assetRequests)
         .leftJoin(assets, eq(assetRequests.assetId, assets.id))
         .leftJoin(users, eq(assetRequests.requesterId, users.id))
-        .where(eq(assetRequests.requesterId, user.id))
+        .where(and(isNull(assetRequests.deviceRequestId), eq(assetRequests.requesterId, user.id)))
         .orderBy(desc(assetRequests.createdAt))
         .limit(limit)
         .offset((page - 1) * limit);

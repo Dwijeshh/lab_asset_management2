@@ -134,10 +134,35 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'loan_returned',
 ]);
 
+// A request for a device type and quantity. Physical units are chosen by an
+// institution approver when the request is approved.
+export const deviceRequests = pgTable('device_requests', {
+  id: serial('id').primaryKey(),
+  requesterId: integer('requester_id').references(() => users.id).notNull(),
+  requesterLabId: integer('requester_lab_id').references(() => labs.id).notNull(),
+  collegeId: integer('college_id').references(() => colleges.id).notNull(),
+  assetName: varchar('asset_name', { length: 255 }).notNull(),
+  category: assetCategoryEnum('category').notNull(),
+  model: varchar('model', { length: 255 }),
+  quantity: integer('quantity').notNull(),
+  loanType: loanTypeEnum('loan_type').notNull().default('temporary'),
+  expectedReturnDate: timestamp('expected_return_date'),
+  notes: text('notes'),
+  status: requestStatusEnum('status').notNull().default('pending'),
+  reviewedById: integer('reviewed_by_id').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  index('dr_college_status_idx').on(table.collegeId, table.status),
+  index('dr_requester_idx').on(table.requesterId),
+]);
+
 // Tracks a technician's request to borrow/transfer an asset
 export const assetRequests = pgTable('asset_requests', {
   id: serial('id').primaryKey(),
   assetId: integer('asset_id').references(() => assets.id).notNull(),
+  deviceRequestId: integer('device_request_id').references(() => deviceRequests.id),
   requesterId: integer('requester_id').references(() => users.id).notNull(),
   requesterLabId: integer('requester_lab_id').references(() => labs.id).notNull(),
   requesterCollegeId: integer('requester_college_id').references(() => colleges.id).notNull(),
@@ -186,6 +211,7 @@ export const notifications = pgTable('notifications', {
   message: text('message').notNull(),
   isRead: boolean('is_read').notNull().default(false),
   relatedRequestId: integer('related_request_id').references(() => assetRequests.id),
+  relatedDeviceRequestId: integer('related_device_request_id').references(() => deviceRequests.id),
   relatedLoanId: integer('related_loan_id').references(() => assetLoans.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
@@ -194,6 +220,7 @@ export const notifications = pgTable('notifications', {
 ]);
 
 export type AssetRequest = typeof assetRequests.$inferSelect;
+export type DeviceRequest = typeof deviceRequests.$inferSelect;
 export type NewAssetRequest = typeof assetRequests.$inferInsert;
 export type AssetLoan = typeof assetLoans.$inferSelect;
 export type NewAssetLoan = typeof assetLoans.$inferInsert;

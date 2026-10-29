@@ -54,6 +54,12 @@ The sample account emails are `admin@manipal.edu`, `main.tech@manipal.edu`, `tec
 
 Admins can switch between institutions. Non-admin accounts are restricted to their assigned institution. The app also supports optional Keycloak OIDC sign-in; local password sign-in is the default.
 
+### Requesting devices
+
+Staff assigned to a lab can select **Request devices** on the dashboard, choose a device type and quantity available in other labs of their institution, and request a temporary loan or permanent transfer. Temporary requests can include an expected return date; all requests can include a reason. The request appears in **Borrow Requests** and notifies that institution's active main technician. The main technician (or an administrator) opens **Assign devices**, sees matching available units grouped by source lab, selects exactly the requested quantity, and approves or rejects the request. Approval creates one loan record per assigned unit. Temporary units can be marked returned in **Active Loans**. Existing requests for a specific serial-numbered asset remain available in the inventory list.
+
+The matching device type uses asset name, category, and model. Requests and assignments stay within one institution. Staff need an assigned lab, and an active main technician must exist in the institution to receive a new quantity request.
+
 ### Asset list exports
 
 On the dashboard inventory or a laboratory's asset list, choose **Print / download list**. Select the details to include, then print or download a PDF, Word (`.docx`), CSV (`.csv`), or ZIP file. ZIP contains PDF, Word, and CSV versions. The asset name is always included. Dashboard exports use the current institution, search, status, and category filters and include all matching pages; laboratory exports include that lab's assets. All signed-in roles can export records they are allowed to view. Exports are limited to 2,000 assets; narrow the filters for a larger inventory.
