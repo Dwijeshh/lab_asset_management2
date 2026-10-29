@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { makeClient, login, uniqueEmail, deleteUser } from '../helpers';
 
 let admin: ReturnType<typeof makeClient>;
-let tempUserId: number | null = null;
+const tempUserIds: number[] = [];
 let techCollegeId: number;
 let techLabId: number;
 
@@ -32,7 +32,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (tempUserId) await deleteUser(tempUserId);
+  for (const id of tempUserIds) await deleteUser(id);
 });
 
 describe('login', () => {
@@ -111,7 +111,7 @@ describe('login', () => {
 describe('session revocation', () => {
   it('revokes all sessions when the password is changed', async () => {
     const { id, email, password } = await createTempUser();
-    tempUserId = id;
+    tempUserIds.push(id);
 
     const user = await login(email, password);
 
@@ -138,7 +138,7 @@ describe('session revocation', () => {
 
   it('revokes sessions when an admin resets the password', async () => {
     const { id, email, password } = await createTempUser();
-    tempUserId = id;
+    tempUserIds.push(id);
 
     const user = await login(email, password);
     expect((await user.get('/api/auth/me')).status).toBe(200);
@@ -156,7 +156,7 @@ describe('session revocation', () => {
 describe('disabled accounts', () => {
   it('loses access immediately when disabled and cannot log in again', async () => {
     const { id, email, password } = await createTempUser();
-    tempUserId = id;
+    tempUserIds.push(id);
 
     const user = await login(email, password);
     expect((await user.get('/api/auth/me')).status).toBe(200);

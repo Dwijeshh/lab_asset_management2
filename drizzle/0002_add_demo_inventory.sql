@@ -1,6 +1,6 @@
 -- Add the curated sample records to existing staging and production databases.
 -- Match colleges by code, labs by college/code, users by email, and assets by
--- serial number. Never delete or overwrite an existing record.
+-- serial number or lab/name. Never delete or overwrite an existing record.
 
 WITH sample_labs (college_code, code, name, department, building, floor, room_number, capacity) AS (
   VALUES
@@ -71,4 +71,8 @@ JOIN "colleges" c ON c.code = v.college_code
 JOIN LATERAL (
   SELECT id FROM "labs" WHERE college_id = c.id AND code = v.lab_code ORDER BY id LIMIT 1
 ) l ON true
-WHERE NOT EXISTS (SELECT 1 FROM "assets" existing WHERE existing.serial_number = v.serial_number);
+WHERE NOT EXISTS (
+  SELECT 1 FROM "assets" existing
+  WHERE existing.serial_number = v.serial_number
+     OR (existing.lab_id = l.id AND existing.name = v.name)
+);
