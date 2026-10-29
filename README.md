@@ -34,9 +34,13 @@ Open <http://localhost:3000/login>. The health endpoint is <http://localhost:300
 
 ### Demo data
 
-`npm run seed` is **destructive**: `src/scripts/seed.ts` deletes existing assets, users, labs, and colleges before inserting sample data. Run it only against a fresh, disposable database. Do not run it against a database containing data you need to keep. The deployment migration `0001_add_mahe_institutions` safely adds MCODS and MCOPS to existing databases without resetting MIT, KMC, or their records. It does not create demo labs, assets, or users.
+`npm run seed` is **destructive**: `src/scripts/seed.ts` deletes existing assets, users, labs, and colleges before inserting sample data. Run it only against a fresh, disposable database. Do not run it against a database containing data you need to keep. The deployment migrations add MCODS and MCOPS, then add the curated set of 7 labs, 16 demo assets, and 6 sample accounts to existing databases. They preserve existing rows and avoid duplicate lab codes, user emails, and asset serial numbers.
 
 After seeding a fresh database, the sample admin login is `admin@manipal.edu` / `password123`. Change the password before exposing the app to others. If you use an existing database, keep its existing accounts and skip the seed step.
+
+Accounts newly created by migration `0002_add_demo_inventory` have no password. An administrator must set a distinct password in User Management before each account can sign in. Existing account credentials are not changed. The migrated assets have a `Demo inventory` note so they can be distinguished from real inventory. Do not use these sample records as verified physical inventory.
+
+The sample account emails are `admin@manipal.edu`, `main.tech@manipal.edu`, `tech1@manipal.edu`, `kmc.tech@manipal.edu`, `mcods.tech@manipal.edu`, and `mcops.tech@manipal.edu`. The migration inserts only missing accounts; it does not reset any of their roles, assignments, or passwords if they already exist.
 
 ## Roles and features
 

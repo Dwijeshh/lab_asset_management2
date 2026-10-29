@@ -15,6 +15,13 @@
       "when": 1793200079630,
       "tag": "0001_add_mahe_institutions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793275263665,
+      "tag": "0002_add_demo_inventory",
+      "breakpoints": true
     }
   ]
 }

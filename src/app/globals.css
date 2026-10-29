@@ -195,8 +195,7 @@ input, textarea { caret-color: var(--ui-primary); }
   background-size: min(1100px, 100vw) auto, cover, cover;
   background-repeat: no-repeat;
 }
-.campus-banner-label,
-.campus-banner-pair span {
+.campus-banner-label {
   padding: .65rem .9rem;
   border: 1px solid rgba(255, 250, 245, .6);
   border-radius: .75rem;
@@ -214,17 +213,6 @@ input, textarea { caret-color: var(--ui-primary); }
   left: max(1rem, calc((100% - 1200px) / 2));
   max-width: min(42rem, calc(100% - 2rem));
 }
-.campus-banner-pair {
-  position: absolute;
-  z-index: 1;
-  top: 1.5rem;
-  left: max(1rem, calc((100% - 1200px) / 2));
-  right: max(1rem, calc((100% - 1200px) / 2));
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.campus-banner-pair span { max-width: 45%; }
 .campus-page[data-institution="mit"]::before,
 .campus-page[data-institution="kmc"]::before,
 .campus-page[data-institution="mcods"]::before,
@@ -252,24 +240,6 @@ input, textarea { caret-color: var(--ui-primary); }
   background: linear-gradient(125deg, #4b4d4b, #80756d);
 }
 .campus-page > .page-shell { position: relative; margin-top: -1.5rem; }
-@media (min-width: 640px) {
-  .campus-page-users::before {
-    background-image: linear-gradient(rgba(37, 27, 23, .08), rgba(37, 27, 23, .08)), url('/mahe-administration.jpg'), url('/mit-manipal-user-photo.png');
-    background-position: center, left 30%, right 35%;
-    background-size: cover, 50% auto, 50% auto;
-  }
-}
-@media (min-width: 1200px) {
-  .campus-page-users::before {
-    height: 26rem;
-    background-image: url('/mit-manipal-user-photo.png'), linear-gradient(to right, transparent 50%, rgba(37, 27, 23, .66) 50%), url('/mahe-administration.jpg'), url('/mit-manipal-user-photo.png');
-    background-position: right center, center, left 30%, right 35%;
-    background-size: min(50vw, 740px) auto, cover, 50% auto, 50% auto;
-  }
-}
-@media (min-width: 1600px) {
-  .campus-page-users::before { background-position: 84% center, center, left 30%, right 35%; }
-}
 .campus-page .surface-card { background: var(--ui-surface); box-shadow: 0 2px 10px rgba(65, 42, 31, .07); }
 .campus-page .ui-button-secondary { border-color: #d8c7b8; background: #fffaf5; color: #40332c; }
 .campus-page .ui-button-secondary:hover:not(:disabled) { background: #f8eee5; border-color: #b8937f; }
@@ -301,8 +271,5 @@ input, textarea { caret-color: var(--ui-primary); }
   .campus-page[data-institution="mcods"]::before,
   .campus-page[data-institution="mcops"]::before { background-size: auto 100%, cover, cover; }
   .campus-banner-label { top: .75rem; left: .75rem; max-width: calc(100% - 1.5rem); padding: .5rem .65rem; font-size: .95rem; }
-  .campus-banner-pair { top: .75rem; left: .75rem; right: .75rem; }
-  .campus-banner-pair span { max-width: 100%; padding: .5rem .65rem; font-size: .95rem; }
-  .campus-banner-pair span:last-child { display: none; }
   .campus-page > .page-shell { margin-top: -1rem; }
 }

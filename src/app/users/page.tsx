@@ -220,8 +220,8 @@ export default function UsersPage() {
     'ui-field';
 
   return (
-    <div className="campus-page campus-page-users min-h-screen">
-      <div className="campus-banner-pair"><span>MAHE · Manipal Academy of Higher Education</span><span>MIT · Manipal Institute of Technology</span></div>
+    <div className="campus-page min-h-screen">
+      <div className="campus-banner-label">MAHE · Manipal Academy of Higher Education</div>
       <main className="page-shell">
         <AppHeader
           user={{ name: user.name, role: user.role, collegeId: user.collegeId }}
