@@ -52,6 +52,10 @@ The sample account emails are `admin@manipal.edu`, `main.tech@manipal.edu`, `tec
 
 Admins can switch between institutions. Non-admin accounts are restricted to their assigned institution. The app also supports optional Keycloak OIDC sign-in; local password sign-in is the default.
 
+### Asset list exports
+
+On the dashboard inventory or a laboratory's asset list, choose **Print / download list**. Select the details to include, then print or download a PDF, Word (`.docx`), or ZIP file. ZIP contains both PDF and Word versions. The asset name is always included. Dashboard exports use the current institution, search, status, and category filters and include all matching pages; laboratory exports include that lab's assets. The server enforces the signed-in user's institution access for every format. Exports are limited to 2,000 assets; narrow the filters for a larger inventory.
+
 The main routes are `/`, `/labs`, `/labs/[id]`, `/users`, and `/login`. API routes in `src/app/api/` cover authentication, users, institutions, labs, assets, asset requests and loans, notifications, and health.
 
 ## Configuration

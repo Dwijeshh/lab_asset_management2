@@ -8,6 +8,7 @@ import AssetList from '@/components/AssetList';
 import StatsCards from '@/components/StatsCards';
 import ModalDialog from '@/components/ModalDialog';
 import UiIcon from '@/components/UiIcon';
+import AssetExportDialog from '@/components/AssetExportDialog';
 import { useSession } from '@/lib/useSession';
 import { institutionBanner } from '@/lib/institutionBanner';
 import CampusBannerLabel from '@/components/CampusBannerLabel';
@@ -47,6 +48,7 @@ export default function LabDashboardPage() {
   const [assetsError, setAssetsError] = useState('');
   const [actionError, setActionError] = useState('');
   const [showAssetForm, setShowAssetForm] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
 
   const fetchLabDetails = async () => {
@@ -238,12 +240,12 @@ export default function LabDashboardPage() {
         {/* Actions */}
         <div className="mb-5 flex flex-wrap justify-between items-center gap-3">
           <h2 className="section-title">Lab assets</h2>
-          <button
-            onClick={() => setShowAssetForm(true)}
-            className="ui-button ui-button-primary"
-          >
-            <UiIcon name="plus" className="h-4 w-4" /> Add asset
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setShowExport(true)} disabled={loading || Boolean(assetsError)} className="ui-button ui-button-secondary">Print / download list</button>
+            <button onClick={() => setShowAssetForm(true)} className="ui-button ui-button-primary">
+              <UiIcon name="plus" className="h-4 w-4" /> Add asset
+            </button>
+          </div>
         </div>
 
         {/* Assets List */}
@@ -262,6 +264,9 @@ export default function LabDashboardPage() {
             canDelete={canDeleteAssets}
           />
         )}
+
+        {/* Asset Form Modal */}
+        {showExport && <AssetExportDialog onClose={() => setShowExport(false)} filters={{ labId }} scope={lab.name} count={assets.length} />}
 
         {/* Asset Form Modal */}
         {showAssetForm && (

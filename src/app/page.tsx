@@ -16,6 +16,7 @@ import PendingRequestsPanel from '@/components/PendingRequestsPanel';
 import ActiveLoansPanel from '@/components/ActiveLoansPanel';
 import ModalDialog from '@/components/ModalDialog';
 import UiIcon from '@/components/UiIcon';
+import AssetExportDialog from '@/components/AssetExportDialog';
 
 export default function HomePage() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function HomePage() {
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'requests' | 'loans'>('assets');
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [requestingAsset, setRequestingAsset] = useState<any>(null);
   const labsRequestId = useRef(0);
 
@@ -281,6 +283,9 @@ export default function HomePage() {
                 }}
               />
               <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setShowExport(true)} disabled={loading || Boolean(assetsError)} className="ui-button ui-button-secondary">
+                  Print / download list
+                </button>
                 {(user.role === 'admin' || user.role === 'main_technician') && (
                   <button
                     onClick={() => router.push('/labs')}
@@ -346,6 +351,16 @@ export default function HomePage() {
 
         {activeTab === 'loans' && (
           <ActiveLoansPanel key={selectedCollegeId} userRole={user.role} collegeId={selectedCollegeId} />
+        )}
+
+        {/* Borrow Request Modal */}
+        {showExport && (
+          <AssetExportDialog
+            onClose={() => setShowExport(false)}
+            filters={{ collegeId: selectedCollegeId, search, status: statusFilter, category: categoryFilter }}
+            scope={selectedCollegeId === 'all' ? 'All MAHE institutions' : currentCollege?.name || 'Selected institution'}
+            count={assetTotal}
+          />
         )}
 
         {/* Borrow Request Modal */}
