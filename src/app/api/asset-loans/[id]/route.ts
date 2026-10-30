@@ -91,6 +91,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Audit trail
     await db.insert(auditLogs).values({
       userId: user.id,
+      collegeId: asset.collegeId,
       action: 'UPDATE',
       entityType: 'asset_loan',
       entityId: loanId,

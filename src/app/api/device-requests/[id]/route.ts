@@ -135,6 +135,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       });
       await tx.insert(auditLogs).values({
         userId: user.id,
+        collegeId: pending.collegeId,
         action: action === 'approve' ? 'APPROVE' : 'REJECT',
         entityType: 'device_request',
         entityId: pending.id,

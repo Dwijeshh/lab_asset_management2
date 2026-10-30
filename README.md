@@ -54,6 +54,10 @@ The sample account emails are `admin@manipal.edu`, `main.tech@manipal.edu`, `tec
 
 Admins can switch between institutions. Non-admin accounts are restricted to their assigned institution. The app also supports optional Keycloak OIDC sign-in; local password sign-in is the default.
 
+### Activity log
+
+Administrators and main technicians can open **Activity log** from the header. The table shows recorded changes and approvals with time, action, record, staff member, institution, and expandable details. Administrators can view all MAHE institutions or select one; main technicians are limited by the API to events affecting their institution. Filters for action and record type and page controls help navigate longer histories. Activity involving a move between institutions appears in both affected institutions' views. Historical entries whose institution cannot be determined safely remain visible to administrators only.
+
 ### Requesting devices
 
 Staff assigned to a lab can select **Request devices** on the dashboard, choose a device type and quantity available in other labs of their institution, and request a temporary loan or permanent transfer. Temporary requests can include an expected return date; all requests can include a reason. The request appears in **Borrow Requests** and notifies that institution's active main technician. The main technician (or an administrator) opens **Assign devices**, sees matching available units grouped by source lab, selects exactly the requested quantity, and approves or rejects the request. Approval creates one loan record per assigned unit. Temporary units can be marked returned in **Active Loans**. Existing requests for a specific serial-numbered asset remain available in the inventory list.
@@ -64,7 +68,7 @@ The matching device type uses asset name, category, and model. Requests and assi
 
 On the dashboard inventory or a laboratory's asset list, choose **Print / download list**. Select the details to include, then print or download a PDF, Word (`.docx`), CSV (`.csv`), or ZIP file. ZIP contains PDF, Word, and CSV versions. The asset name is always included. Dashboard exports use the current institution, search, status, and category filters and include all matching pages; laboratory exports include that lab's assets. All signed-in roles can export records they are allowed to view. Exports are limited to 2,000 assets; narrow the filters for a larger inventory.
 
-The main routes are `/`, `/labs`, `/labs/[id]`, `/users`, and `/login`. API routes in `src/app/api/` cover authentication, users, institutions, labs, assets, asset requests and loans, notifications, and health.
+The main routes are `/`, `/labs`, `/labs/[id]`, `/users`, `/logs`, and `/login`. API routes in `src/app/api/` cover authentication, users, institutions, labs, assets, asset requests and loans, audit logs, notifications, and health.
 
 ## Configuration
 

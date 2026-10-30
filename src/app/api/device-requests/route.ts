@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         relatedDeviceRequestId: inserted[0].id,
       })));
       await tx.insert(auditLogs).values({
-        userId: user.id, action: 'CREATE', entityType: 'device_request', entityId: inserted[0].id,
+        userId: user.id, collegeId: user.collegeId, action: 'CREATE', entityType: 'device_request', entityId: inserted[0].id,
         changes: JSON.stringify({ assetName, category, model, quantity, loanType, requesterLabId: user.labId }),
       });
       return inserted;

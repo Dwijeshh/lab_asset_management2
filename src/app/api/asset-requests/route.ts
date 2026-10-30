@@ -215,6 +215,7 @@ export async function POST(request: Request) {
     // Audit trail
     await db.insert(auditLogs).values({
       userId: user.id,
+      collegeId: asset.collegeId,
       action: 'CREATE',
       entityType: 'asset_request',
       entityId: newRequest[0].id,

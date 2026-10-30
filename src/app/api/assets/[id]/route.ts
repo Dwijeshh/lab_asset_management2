@@ -198,6 +198,8 @@ export async function PUT(
     }
     await logAudit({
       userId: session.user.id,
+      collegeId: before.collegeId,
+      relatedCollegeId: before.collegeId !== after.collegeId ? after.collegeId : null,
       action: 'UPDATE',
       entityType: 'asset',
       entityId: assetId,
@@ -318,6 +320,7 @@ export async function DELETE(
     // surviving record of what it was.
     await logAudit({
       userId: session.user.id,
+      collegeId: deletedAsset[0].collegeId,
       action: 'DELETE',
       entityType: 'asset',
       entityId: assetId,
