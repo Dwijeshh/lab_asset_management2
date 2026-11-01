@@ -156,34 +156,28 @@ export default function LabDashboardPage() {
       <CampusBannerLabel institution={institutionBanner(lab.collegeCode ? { code: lab.collegeCode } : undefined)} name={lab.collegeCode} />
       <main className="page-shell">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Link href="/labs" className="ui-button ui-button-secondary shadow-sm">
-              ← Back to Labs
-            </Link>
-          </div>
-          
-          <div className="surface-card p-5 sm:p-6">
+        <div className="mb-6">
+          <div className="surface-card border-t-[3px] border-t-[var(--ui-primary)] p-5 sm:p-6">
+            <Link href="/labs" className="app-back-link mb-4 inline-flex min-h-9 items-center text-sm font-semibold">← Back to Labs</Link>
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="rounded-xl bg-blue-50 p-3 text-blue-700"><UiIcon name="lab" className="h-7 w-7" /></span>
+                <div className="mb-2 flex items-center gap-3">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{lab.name}</h1>
-                    <p className="text-gray-600">Lab Code: {lab.code}</p>
+                    <h1 className="app-page-title">{lab.name}</h1>
+                    <p className="muted-copy mt-1 text-sm font-semibold">Lab Code: {lab.code}</p>
                   </div>
                 </div>
                 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 border-t border-[var(--ui-line)] pt-4 sm:grid-cols-4">
                   {lab.department && (
                     <div>
-                      <span className="text-sm text-gray-500">Department</span>
+                      <span className="text-xs font-semibold text-[var(--ui-muted)]">Department</span>
                       <p className="font-medium">{lab.department}</p>
                     </div>
                   )}
                   {lab.building && (
                     <div>
-                      <span className="text-sm text-gray-500">Location</span>
+                      <span className="text-xs font-semibold text-[var(--ui-muted)]">Location</span>
                       <p className="font-medium">
                         {lab.building}
                         {lab.floor && `, ${lab.floor}`}
@@ -193,12 +187,12 @@ export default function LabDashboardPage() {
                   )}
                   {lab.capacity && (
                     <div>
-                      <span className="text-sm text-gray-500">Capacity</span>
+                      <span className="text-xs font-semibold text-[var(--ui-muted)]">Capacity</span>
                       <p className="font-medium">{lab.capacity} students</p>
                     </div>
                   )}
                   <div>
-                    <span className="text-sm text-gray-500">Status</span>
+                    <span className="text-xs font-semibold text-[var(--ui-muted)]">Status</span>
                     <p className="font-medium">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         lab.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
@@ -213,30 +207,6 @@ export default function LabDashboardPage() {
           </div>
         </div>
 
-        {/* Lab Team */}
-        <div className="surface-card mb-8 p-5 sm:p-6">
-          <h2 className="section-title mb-3">Lab team</h2>
-          {mainTechnician || technicians.length > 0 ? (
-            <div className="divide-y divide-[var(--ui-line)]">
-              {[...(mainTechnician ? [mainTechnician] : []), ...technicians].map((member) => (
-                <div key={member.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900">{member.name}</p>
-                    <p className="muted-copy break-all text-sm">{member.email}</p>
-                    {member.employeeId && <p className="muted-copy mt-0.5 text-xs">ID: {member.employeeId}</p>}
-                  </div>
-                  <span className="rounded-full border border-[var(--ui-line)] px-2.5 py-1 text-xs font-semibold">
-                    {member.role === 'main_technician' ? 'Main technician' : 'Technician'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : <p className="muted-copy py-4">No team members are assigned to this lab yet.</p>}
-        </div>
-
-        {/* Asset Statistics */}
-        <StatsCards counts={{ total: totalAssets, available, inUse, maintenance }} />
-
         {/* Actions */}
         <div className="mb-5 flex flex-wrap justify-between items-center gap-3">
           <h2 className="section-title">Lab assets</h2>
@@ -247,6 +217,8 @@ export default function LabDashboardPage() {
             </button>
           </div>
         </div>
+
+        <div className="mb-5"><StatsCards counts={{ total: totalAssets, available, inUse, maintenance }} /></div>
 
         {/* Assets List */}
         {actionError && <div role="alert" className="ui-alert mb-4">{actionError}</div>}
@@ -264,6 +236,26 @@ export default function LabDashboardPage() {
             canDelete={canDeleteAssets}
           />
         )}
+
+        <section aria-labelledby="lab-team-heading" className="surface-card mt-8 p-5 sm:p-6">
+          <h2 id="lab-team-heading" className="section-title mb-3">Lab team</h2>
+          {mainTechnician || technicians.length > 0 ? (
+            <div className="divide-y divide-[var(--ui-line)]">
+              {[...(mainTechnician ? [mainTechnician] : []), ...technicians].map((member) => (
+                <div key={member.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[var(--ui-ink)]">{member.name}</p>
+                    <p className="muted-copy break-all text-sm">{member.email}</p>
+                    {member.employeeId && <p className="muted-copy mt-0.5 text-xs">ID: {member.employeeId}</p>}
+                  </div>
+                  <span className="rounded-full border border-[var(--ui-line)] px-2.5 py-1 text-xs font-semibold">
+                    {member.role === 'main_technician' ? 'Main technician' : 'Technician'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : <p className="muted-copy py-4">No team members are assigned to this lab yet.</p>}
+        </section>
 
         {/* Asset Form Modal */}
         {showExport && <AssetExportDialog onClose={() => setShowExport(false)} filters={{ labId }} scope={lab.name} count={assets.length} />}

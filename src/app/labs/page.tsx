@@ -121,7 +121,7 @@ export default function LabsPage() {
 
         {/* Labs Grid */}
         {loading ? (
-          <div role="status" aria-label="Loading laboratories" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0,1,2].map((item) => <div key={item} className="surface-card ui-loading h-56"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton w-3/4"/><div className="ui-skeleton w-1/2"/></div>)}</div>
+          <div role="status" aria-label="Loading laboratories" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{[0,1,2].map((item) => <div key={item} className="surface-card ui-loading h-44"><div className="ui-skeleton w-1/3"/><div className="ui-skeleton w-3/4"/><div className="ui-skeleton w-1/2"/></div>)}</div>
         ) : error ? (
           <div role="alert" className="surface-card ui-empty"><h2>Laboratories unavailable</h2><p>{error}</p><button onClick={() => fetchLabs()} className="ui-button ui-button-secondary mt-5">Try again</button></div>
         ) : labs.length === 0 ? (
@@ -142,15 +142,15 @@ export default function LabsPage() {
             )}
           </div>
         ) : (
-          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {labs.map((lab) => (
               <Link
                 href={`/labs/${lab.id}`}
                 key={lab.id}
-                className="surface-card group flex min-h-56 flex-col p-5 transition-colors sm:p-6"
+                className="surface-card lab-record group flex min-h-48 flex-col p-4 transition-colors sm:p-5"
               >
                 <div className="mb-1 flex items-start justify-between gap-3">
-                  <h3 className="min-w-0 text-lg font-bold leading-snug text-gray-900 transition-colors group-hover:text-blue-600">
+                  <h3 className="min-w-0 text-lg font-bold leading-snug text-[var(--ui-ink)] transition-colors group-hover:text-[#87432e]">
                     {lab.name}
                   </h3>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
@@ -159,17 +159,18 @@ export default function LabsPage() {
                     {lab.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                <p className="mb-3 text-sm font-medium text-blue-700">Code {lab.code}</p>
+                <p className="mb-2 text-sm font-semibold text-[#87432e]">Code {lab.code}</p>
+                {selectedCollegeId === 'all' && lab.collegeId && <p className="mb-2 text-xs font-semibold text-[var(--ui-muted)]">{colleges.find(c => c.id === lab.collegeId)?.name || 'MAHE institution'}</p>}
                 
                 {lab.department && (
-                  <div className="mb-3">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">
+                  <div className="mb-2">
+                    <span className="text-xs font-semibold text-[var(--ui-muted)]">
                       {lab.department}
                     </span>
                   </div>
                 )}
                 
-                <div className="space-y-1.5 text-sm text-gray-600 mt-2">
+                <div className="mt-1 space-y-1.5 text-sm text-[var(--ui-muted)]">
                   {lab.building && (
                     <div className="flex items-center gap-2">
                       <UiIcon name="pin" className="h-4 w-4 shrink-0" />
@@ -188,7 +189,7 @@ export default function LabsPage() {
                   )}
                 </div>
                 
-                <div className="mt-auto flex items-center justify-end border-t border-[var(--ui-line)] pt-4 text-sm font-semibold text-blue-600">
+                <div className="mt-auto flex items-center justify-end border-t border-[var(--ui-line)] pt-3 text-sm font-semibold text-[#87432e]">
                   Open lab →
                 </div>
               </Link>

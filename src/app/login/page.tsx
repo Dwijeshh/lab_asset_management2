@@ -99,12 +99,12 @@ export default function LoginPage() {
         <div className="login-photo-overlay absolute inset-0" aria-hidden="true" />
         <div className="absolute bottom-12 left-6 right-6 text-white sm:left-10 lg:bottom-16 lg:left-14 lg:right-14">
           <p className="login-photo-label mb-2 text-sm font-semibold tracking-wide">MAHE · MANIPAL</p>
-          <p className="max-w-xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">A clearer view of every lab asset.</p>
+          <p className="login-photo-message max-w-xl text-3xl leading-tight sm:text-5xl">A clearer view of every lab asset.</p>
         </div>
       </section>
-      <div className="login-form-panel relative -mt-6 flex min-w-0 items-center rounded-t-3xl px-4 pb-10 pt-8 sm:px-8 lg:mt-0 lg:min-h-screen lg:rounded-none lg:px-10 lg:py-12">
+      <div className="login-form-panel relative -mt-6 flex min-w-0 items-center rounded-t-3xl px-4 pb-8 pt-6 sm:px-8 lg:mt-0 lg:min-h-screen lg:rounded-none lg:px-10 lg:py-8">
       <div className="mx-auto w-full max-w-lg">
-        <div className="login-card surface-card overflow-hidden border-t-4 p-6 shadow-lg sm:p-9">
+        <div className="login-card surface-card overflow-hidden border-t-4 p-5 sm:p-7">
           {/* Header */}
           <div className="mb-5 text-center">
             <div className="mb-2 flex justify-center">
@@ -113,10 +113,10 @@ export default function LoginPage() {
                 alt="MAHE logo"
                 width={80}
                 height={80}
-                className="login-logo h-16 w-auto rounded-xl border border-stone-200 bg-white p-2 object-contain shadow-sm"
+                className="login-logo h-14 w-auto rounded-lg border border-stone-200 bg-white p-1.5 object-contain"
               />
             </div>
-            <h1 className="login-title mb-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="login-title mb-1 text-3xl tracking-tight sm:text-4xl">
               Lab Asset Manager
             </h1>
             <p className="login-muted font-medium">Manipal Academy of Higher Education (MAHE)</p>
@@ -137,7 +137,7 @@ export default function LoginPage() {
           ) : (
             <>
               {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div>
                   <label htmlFor="login-email" className="login-label ui-label">
                     Email Address
@@ -187,7 +187,7 @@ export default function LoginPage() {
               </form>
 
               {/* Demo Credentials */}
-              <div className="login-divider mt-5 border-t pt-3">
+              <div className="login-divider mt-4 border-t pt-3">
                 <p className="login-muted mb-2 text-xs font-semibold">Demo credentials</p>
                 <dl className="login-demo-list text-xs">
                   <div className="login-demo-row"><dt>Admin</dt><dd>admin@manipal.edu / password123</dd></div>
@@ -200,7 +200,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="login-muted mt-6 text-center text-xs leading-relaxed">
+        <p className="login-muted mt-4 text-center text-xs leading-relaxed">
           Campus photo: <a className="login-credit-link underline" href="https://commons.wikimedia.org/wiki/File:MAHEMANIPALEDU.jpg" target="_blank" rel="noopener noreferrer">Lann the Clever / Wikimedia Commons</a> · <a className="login-credit-link underline" href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> · resized and cropped for display.
         </p>
       </div>

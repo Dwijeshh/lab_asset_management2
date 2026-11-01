@@ -3,7 +3,7 @@ name: Lab Asset Manager
 description: Calm, structured interface for MAHE laboratory inventory and borrowing.
 colors:
   action-terracotta: "#a64f35"
-  section-indigo: "#4f46e5"
+  role-neutral: "#eee5dc"
   success-green: "#16a34a"
   danger-red: "#dc2626"
   canvas: "#f5eee5"
@@ -13,25 +13,25 @@ colors:
   line: "#e4d6c8"
 typography:
   headline:
-    fontFamily: "ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.875rem"
-    fontWeight: 700
+    fontFamily: "Newsreader Variable, serif"
+    fontSize: "clamp(2rem, 3.1vw, 2.65rem)"
+    fontWeight: 650
   title:
-    fontFamily: "ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.5rem"
-    fontWeight: 700
+    fontFamily: "Newsreader Variable, serif"
+    fontSize: "clamp(1.5rem, 2vw, 1.85rem)"
+    fontWeight: 650
   body:
-    fontFamily: "ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "DM Sans Variable, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
   label:
-    fontFamily: "ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "DM Sans Variable, sans-serif"
     fontSize: "0.875rem"
-    fontWeight: 600
+    fontWeight: 700
 rounded:
-  control: "10px"
-  panel: "16px"
-  header: "16px"
+  control: "8px"
+  panel: "14px"
+  header: "14px"
 spacing:
   tight: "8px"
   control: "12px"
@@ -49,10 +49,10 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.control}"
     padding: "8px 16px"
-  card:
+  work-surface:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.panel}"
-    padding: "24px"
+    padding: "20px"
   input:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -68,12 +68,12 @@ components:
 
 The interface is calm, structured, and modern. It is a work surface for locating equipment and acting on records, so hierarchy and status clarity carry more weight than decoration. The MAHE logo, campus photograph, and warm brick accent establish identity across login and every signed-in route.
 
-The UI uses ivory panels on a warm stone canvas, modest shadows, rounded controls, and compact status chips. Preserve that familiar language when adding screens. Let tables remain readable and scroll within their own region on narrow screens.
+The UI uses ivory work surfaces on a warm stone canvas, modest offset shadows, squared-off rounded controls, and compact status chips. Campus imagery identifies the institution, then recedes so the first task appears in the opening viewport. Tables remain readable and scroll within their own region on narrow screens.
 
 **Key Characteristics:**
 - Quiet warm surfaces with a restrained terracotta action accent.
 - Clear labels and visible action states for repetitive administrative work.
-- Dense data where needed, with room around major sections.
+- Compact records and tables, with room around major sections.
 
 ## Colors
 
@@ -83,7 +83,7 @@ The palette draws from the brick, stone, and daylight in the MAHE administrative
 - **Action Terracotta:** primary save and add actions, focus, and selected navigation.
 
 ### Secondary
-- **Section Indigo:** retained for established role and status accents; routine secondary actions use a warm neutral outline.
+- **Role Neutral:** pale stone distinguishes the administrator badge. Routine secondary actions use a warm neutral outline.
 
 ### Tertiary
 - **Success Green:** positive states and the existing Labs action.
@@ -100,11 +100,11 @@ The palette draws from the brick, stone, and daylight in the MAHE administrative
 
 ## Typography
 
-**Display Font:** no separate display face is used.
-**Body Font:** the Tailwind system sans stack.
-**Label/Mono Font:** the body stack; monospace appears only in small code-like institution metadata.
+**Display Font:** self-hosted Newsreader Variable for page, section, and empty-state headings and summary figures.
+**Body Font:** self-hosted DM Sans Variable for controls, tables, forms, and prose.
+**Label/Mono Font:** DM Sans Variable for labels; monospace only for real codes or technical data.
 
-**Character:** Direct, familiar interface typography. Weight and size distinguish hierarchy while table copy stays compact.
+**Character:** An editorial serif gives MAHE page headings an institutional voice. The sans face stays calm and precise where staff scan inventory and complete forms. Both fonts ship with the app, avoiding browser font requests.
 
 ### Hierarchy
 - **Headline:** bold, large page title; scales down on narrow screens.
@@ -114,7 +114,7 @@ The palette draws from the brick, stone, and daylight in the MAHE administrative
 
 ## Layout
 
-The dashboard sits in a centered container capped at the Tailwind `max-w-7xl` width, with compact mobile gutters and wider gutters at larger breakpoints. The four inventory totals form one quiet summary strip: two columns on phones and four on desktop. Filters wrap. Inventory, request, loan, and user records become labeled vertical records on phones so details and actions remain readable without page-level horizontal scrolling. Desktop keeps compact tables inside named regions.
+The signed-in shell is a centered 80rem work area. Its compact campus banner remains visible above an overlapping ivory header. The header separates the title and navigation from institution and account controls. On phones, navigation uses two clearly tappable columns. The dashboard leads with scope, tabs, search, and actions; its four totals sit near the inventory as one summary strip. Inventory and user records become labeled vertical records on phones; asset records use two columns on tablets. Desktop keeps compact tables inside named regions.
 
 **The Local Scroll Rule.** Any table that stays wide owns its horizontal scroll; the entire page should remain within the viewport.
 
@@ -138,10 +138,10 @@ Inputs, buttons, and data cards use gently rounded corners. The shared header an
 - **Style:** pale role or status fill with darker matching text. The words Available, In Use, Maintenance, and Retired remain visible independently of color.
 
 ### Cards / Containers
-- **Corner Style:** rounded panel corners, with a larger radius on the shared header.
+- **Corner Style:** 14px surface corners and 8px controls.
 - **Background:** white over the neutral canvas.
 - **Shadow Strategy:** a small soft shadow plus a thin stone border.
-- **Internal Padding:** mostly standard or section spacing.
+- **Internal Padding:** 16–24px according to task density. Avoid a card inside a card for ordinary records.
 
 ### Inputs / Fields
 - **Style:** ivory fill, stone border, gently rounded corners, and full-width fields in forms.
@@ -151,13 +151,13 @@ Inputs, buttons, and data cards use gently rounded corners. The shared header an
 - **Login:** provide a labeled Show/Hide password control while retaining the compact demo-account reference used by this project.
 
 ### Navigation
-- **Style:** compact rounded administrator links in the header and an underlined active dashboard tab. The tab row scrolls within itself on narrow screens.
+- **Style:** the active page is a warm outlined navigation control; dashboard tabs keep their underline. Each link has a 40px touch height. On phones the primary navigation forms two columns, while the dashboard tab row scrolls within itself.
 
 ### Campus imagery
-- **Photo:** the MAHE Manipal administrative building anchors login and all signed-in routes. Login has a dedicated photo panel on desktop and a short banner on mobile. Signed-in routes have a top-aligned photo banner that shows the roof and emblem before the content begins.
+- **Photo:** the MAHE Manipal administrative building anchors login and all signed-in routes. Login has a dedicated photo panel on desktop and a short banner on mobile. Signed-in routes use a shorter top photo banner with the work surface overlapping its lower edge.
 - **Palette:** warm stone, ivory, and terracotta run through login and the application workspace. Content below the banner sits on a solid warm canvas for legibility.
 - **Institution banners:** the dashboard and laboratory list follow the selected institution, and laboratory detail uses its own institution. All MAHE institutions uses the MAHE photo; MIT, MCODS, and MCOPS use user-supplied campus photos; KMC uses a public-domain campus photo. Each banner has a readable institution label, and photos are framed to show the building rather than zooming tightly. Unknown institutions get a neutral labeled banner rather than an unrelated campus photo.
-- **Institution gallery:** user management uses the MAHE photo in its top banner and shows labeled MAHE, MIT, MCODS, and MCOPS photo cards below the header on desktop and mobile. Add MCHP and other institutes only when approved, correctly identified photos are available.
+- **Institution gallery:** user management uses the MAHE photo in its top banner and retains four labeled MAHE, MIT, MCODS, and MCOPS views below the header. The gallery is deliberately shallow so account search and the table appear sooner. Add MCHP and other institutes only when approved, correctly identified photos are available.
 - **Attribution:** show the photographer, source, and CC BY-SA 4.0 license near the form. Keep the image credit in `public/mahe-administration.LICENSE.txt` with the asset.
 
 ## Do's and Don'ts
@@ -170,4 +170,4 @@ Inputs, buttons, and data cards use gently rounded corners. The shared header an
 ### Don't:
 - **Don't** let institution names or wide tables push the page beyond the phone viewport.
 - **Don't** use a quiet empty state to conceal a failed request.
-- **Don't** invent a new brand palette or typeface without a separate design decision.
+- **Don't** let photography, summary cards, or nested panels delay the primary task.
