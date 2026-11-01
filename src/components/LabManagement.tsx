@@ -135,7 +135,7 @@ export default function LabManagement({
               labs.map((lab) => (
                 <div
                   key={lab.id}
-                  className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                  className="border-b border-[var(--ui-line)] px-1 py-4 last:border-b-0"
                 >
                   <div className="flex justify-between items-start">
                     <div>

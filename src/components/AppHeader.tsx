@@ -49,36 +49,36 @@ export default function AppHeader({
   const pathname = usePathname();
 
   return (
-    <header className="surface-card mb-6 flex min-w-0 flex-col gap-5 p-4 sm:p-6 2xl:flex-row 2xl:items-center 2xl:justify-between">
-      <div className="flex min-w-0 items-center gap-4">
+    <header className="app-header surface-card mb-6 min-w-0">
+      <div className="app-header-main flex min-w-0 items-center gap-4">
         <Image
           src="/logo.jpg"
           alt="MAHE Logo"
           width={64}
           height={64}
-          className="h-16 w-auto object-contain rounded-lg border border-gray-200 bg-white p-1 shadow-sm"
+          className="app-header-logo h-14 w-auto shrink-0 object-contain rounded-lg border bg-white p-1 sm:h-16"
         />
         <div className="min-w-0">
           {backLink && (
             <button
               onClick={() => router.push(backLink.href)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-1"
+              className="app-back-link mb-1 inline-flex min-h-8 items-center gap-1 text-sm font-semibold"
             >
               ← {backLink.label}
             </button>
           )}
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="app-page-title">
             {title}
           </h1>
-          <p className="mt-0.5 text-gray-600 font-medium text-sm">{subtitle}</p>
+          <p className="app-page-subtitle mt-1 text-sm">{subtitle}</p>
           {(user.role === 'admin' || user.role === 'main_technician') && (
-          <nav aria-label="Primary" className="mt-3 flex flex-wrap gap-1.5">
+          <nav aria-label="Primary" className="app-primary-nav mt-4 flex flex-wrap gap-1">
               {[...STAFF_NAV, ...(user.role === 'admin' ? [{ label: 'Users', href: '/users' }] : [])].map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={pathname === item.href ? 'page' : undefined}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                  className={`app-nav-link inline-flex min-h-10 items-center rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors ${
                     pathname === item.href ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
@@ -90,7 +90,7 @@ export default function AppHeader({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="app-header-tools flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {showCollegeSelector && <CollegeSelector
           userRole={user.role}
           userCollegeId={user.collegeId}
@@ -99,17 +99,17 @@ export default function AppHeader({
           onCollegeChange={onCollegeChange}
         />}
 
-        <div className="flex min-w-0 flex-wrap items-center gap-3 border-t pt-3 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3 border-gray-200">
+        <div className="app-header-account flex min-w-0 flex-wrap items-center gap-3">
           <NotificationBell />
-          <div className="text-right ml-2">
-            <span className="text-sm font-semibold text-gray-800 block">{user.name}</span>
+          <div className="min-w-0 text-left sm:text-right">
+            <span className="block truncate text-sm font-semibold text-gray-800">{user.name}</span>
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${ROLE_COLORS[user.role]}`}>
               {ROLE_LABELS[user.role]}
             </span>
           </div>
           <button
             onClick={() => logout(router)}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 border border-gray-200 transition-colors font-medium"
+            className="ui-button ui-button-secondary"
             title="Sign out"
           >
             Sign out →

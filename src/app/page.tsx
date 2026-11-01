@@ -231,16 +231,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        {!loading && !assetsError && <StatsCards counts={assetCounts} />}
-
         {/* Tabs */}
-        <div className="mt-8 mb-4 border-b border-gray-200">
-          <nav aria-label="Dashboard sections" className="dashboard-nav -mb-px flex max-w-full gap-5 overflow-x-auto sm:gap-8">
+        <div className="mt-5 mb-4 border-b border-[var(--ui-line)]">
+          <nav aria-label="Dashboard sections" className="dashboard-nav -mb-px flex max-w-full gap-3 overflow-x-auto sm:gap-8">
             <button
               onClick={() => setActiveTab('assets')}
               aria-pressed={activeTab === 'assets'}
-              className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`inline-flex min-h-11 items-center whitespace-nowrap px-0.5 border-b-2 font-semibold text-xs sm:text-sm transition-colors ${
                 activeTab === 'assets'
                   ? 'border-blue-600 text-blue-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -251,7 +248,7 @@ export default function HomePage() {
             <button
               onClick={() => setActiveTab('requests')}
               aria-pressed={activeTab === 'requests'}
-              className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`inline-flex min-h-11 items-center whitespace-nowrap px-0.5 border-b-2 font-semibold text-xs sm:text-sm transition-colors ${
                 activeTab === 'requests'
                   ? 'border-blue-600 text-blue-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -262,7 +259,7 @@ export default function HomePage() {
             <button
               onClick={() => setActiveTab('loans')}
               aria-pressed={activeTab === 'loans'}
-              className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`inline-flex min-h-11 items-center whitespace-nowrap px-0.5 border-b-2 font-semibold text-xs sm:text-sm transition-colors ${
                 activeTab === 'loans'
                   ? 'border-blue-600 text-blue-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -276,7 +273,7 @@ export default function HomePage() {
         {activeTab === 'assets' && (
           <>
             {/* Action Bar */}
-            <div className="mb-6 flex min-w-0 flex-col gap-3 mt-2 xl:flex-row xl:items-center xl:justify-between">
+            <div className="mb-5 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
               <SearchBar
                 onSearch={(s, st, cat) => {
                   setAssetPage(1);
@@ -317,6 +314,8 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+
+            {!loading && !assetsError && <div className="mb-5"><StatsCards counts={assetCounts} /></div>}
 
             {/* Asset List */}
             {loading ? (

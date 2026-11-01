@@ -25,9 +25,9 @@ export default function AssetList({ assets, currentUser, onEdit, onDelete, onReq
 
   return (
     <>
-      <ul className="space-y-3 sm:hidden" aria-label="Asset inventory">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:hidden" aria-label="Asset inventory">
         {assets.map((asset) => (
-          <li key={asset.id} className="surface-card p-4">
+          <li key={asset.id} className="surface-card flex min-w-0 flex-col p-4">
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="break-words font-semibold leading-snug text-gray-900">{asset.name}</h3>
@@ -42,33 +42,33 @@ export default function AssetList({ assets, currentUser, onEdit, onDelete, onReq
               <div><dt className="muted-copy text-xs">Serial number</dt><dd className="mt-0.5 break-all">{asset.serialNumber || '—'}</dd></div>
               <div className="col-span-2"><dt className="muted-copy text-xs">Location</dt><dd className="mt-0.5">{asset.location || 'Not recorded'}</dd></div>
             </dl>
-            <div className="mt-4 border-t border-[var(--ui-line)] pt-3">
+            <div className="mt-auto border-t border-[var(--ui-line)] pt-3">
               <AssetActions asset={asset} currentUser={currentUser} onEdit={onEdit} onDelete={onDelete} onRequest={onRequest} canDelete={canDelete} />
             </div>
           </li>
         ))}
       </ul>
-      <div className="surface-card hidden max-w-full overflow-hidden sm:block">
+      <div className="surface-card hidden max-w-full overflow-hidden lg:block">
       <div className="data-region" role="region" aria-label="Asset inventory table" tabIndex={0}>
-        <table className="data-table min-w-[1000px]">
+        <table className="data-table min-w-[920px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left">
                 Asset
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left">
                 Category
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left">
                 Location
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left">
                 Serial Number
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-right">
                 Actions
               </th>
             </tr>
@@ -76,7 +76,7 @@ export default function AssetList({ assets, currentUser, onEdit, onDelete, onReq
           <tbody className="divide-y divide-gray-200">
             {assets.map((asset) => (
               <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="font-medium text-gray-900">{asset.name}</div>
@@ -88,23 +88,23 @@ export default function AssetList({ assets, currentUser, onEdit, onDelete, onReq
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="text-sm text-gray-700">
                     {CATEGORY_LABELS[asset.category] || asset.category}
                   </span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="text-sm text-gray-700">{asset.location}</span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[asset.status]}`}>
                     {STATUS_LABELS[asset.status] || asset.status}
                   </span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="text-sm text-gray-700">{asset.serialNumber || '-'}</span>
                 </td>
-                <td className="min-w-[11rem] px-6 py-4 text-right">
+                <td className="min-w-[11rem] px-4 py-3 text-right">
                   <AssetActions asset={asset} currentUser={currentUser} onEdit={onEdit} onDelete={onDelete} onRequest={onRequest} canDelete={canDelete} />
                 </td>
               </tr>

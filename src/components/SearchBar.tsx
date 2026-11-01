@@ -38,7 +38,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   };
 
   return (
-    <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:items-center">
+    <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:items-end">
       <div className="relative min-w-0 sm:col-span-2 lg:flex-1">
         <input
           type="text"
@@ -46,10 +46,10 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search assets..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="ui-field w-full pl-10"
         />
         <svg
-          className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+          className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-[var(--ui-muted)]"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -67,7 +67,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         aria-label="Filter assets by status"
         value={status}
         onChange={(e) => handleStatusChange(e.target.value)}
-        className="min-w-0 w-full lg:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="ui-field min-w-0 w-full lg:w-auto lg:max-w-44"
       >
         {statuses.map(s => (
           <option key={s.value} value={s.value}>
@@ -80,7 +80,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         aria-label="Filter assets by category"
         value={category}
         onChange={(e) => handleCategoryChange(e.target.value)}
-        className="min-w-0 w-full lg:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="ui-field min-w-0 w-full lg:w-auto lg:max-w-56"
       >
         {categories.map(c => (
           <option key={c.value} value={c.value}>

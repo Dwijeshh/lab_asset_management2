@@ -233,21 +233,21 @@ export default function UsersPage() {
           subtitle="Create accounts, assign roles, colleges and labs, and control access"
         />
 
-        <section aria-label="MAHE campus views" className="mb-6">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            <figure className="campus-gallery-photo relative h-32 overflow-hidden rounded-xl sm:h-60">
+        <section aria-label="MAHE campus views" className="mb-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            <figure className="campus-gallery-photo relative h-20 overflow-hidden rounded-lg sm:h-32">
               <Image src="/mahe-administration.jpg" alt="MAHE Manipal administrative building" fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover object-center" />
               <figcaption className="campus-gallery-caption">MAHE Manipal</figcaption>
             </figure>
-            <figure className="campus-gallery-photo campus-gallery-photo-mit relative h-32 overflow-hidden rounded-xl sm:h-60">
+            <figure className="campus-gallery-photo campus-gallery-photo-mit relative h-20 overflow-hidden rounded-lg sm:h-32">
               <Image src="/mit-manipal-user-photo.png" alt="Front entrance of Manipal Institute of Technology" fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain object-center" />
               <figcaption className="campus-gallery-caption">MIT Manipal</figcaption>
             </figure>
-            <figure className="campus-gallery-photo campus-gallery-photo-mcods relative h-32 overflow-hidden rounded-xl sm:h-60">
+            <figure className="campus-gallery-photo campus-gallery-photo-mcods relative h-20 overflow-hidden rounded-lg sm:h-32">
               <Image src="/mcods-manipal-user-photo.png" alt="Entrance of Manipal College of Dental Sciences" fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain object-center" />
               <figcaption className="campus-gallery-caption">MCODS Manipal</figcaption>
             </figure>
-            <figure className="campus-gallery-photo campus-gallery-photo-mcops relative h-32 overflow-hidden rounded-xl sm:h-60">
+            <figure className="campus-gallery-photo campus-gallery-photo-mcops relative h-20 overflow-hidden rounded-lg sm:h-32">
               <Image src="/mcops-manipal-user-photo.png" alt="Building of Manipal College of Pharmaceutical Sciences" fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain object-center" />
               <figcaption className="campus-gallery-caption">MCOPS Manipal</figcaption>
             </figure>

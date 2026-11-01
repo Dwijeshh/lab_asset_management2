@@ -42,8 +42,8 @@ export default function ModalDialog({ title, onClose, children }: { title: strin
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="max-h-[95dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl sm:max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#211713]/65 p-2 sm:p-4">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="max-h-[95dvh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#d8c7b8] border-t-[3px] border-t-[#a64f35] bg-[#fffaf5] shadow-[0_20px_65px_rgba(30,20,15,.3)] sm:max-h-[90vh]">
         {children}
       </div>
     </div>
