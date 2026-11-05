@@ -24,4 +24,4 @@ Follow the [README](README.md#run-locally) for installation, environment variabl
 
 Open a pull request against `main` and fill in the template. Explain affected roles and institutions, testing, and any migration or configuration steps. Add before-and-after screenshots for UI changes without exposing real user data. Wait for the required CI check and review before merging.
 
-The repository code is distributed under the [MIT License](LICENSE). Campus photos, the MAHE logo, and other third-party media may have separate rights; only add media you have permission to use and document its source and terms.
+The source code is [not licensed for reuse](LICENSE). Only contribute code you have the right to submit for this project. Campus photos, the MAHE logo, and other third-party media may have separate rights; only add media you have permission to use and document its source and terms.

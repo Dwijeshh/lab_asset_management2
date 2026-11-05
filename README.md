@@ -130,8 +130,8 @@ These are the deployment URLs supplied by the project team. A healthy instance r
 
 See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
-## Contributing and license
+## Contributing and rights
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development and pull request process and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards. The repository code is available under the [MIT License](./LICENSE).
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development and pull request process and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards. The source code is **not licensed for reuse**. See the [rights notice](./LICENSE); obtain written permission from the applicable copyright holders before using, copying, modifying, or distributing it.
 
-The MIT License does not grant rights to the MAHE logo or campus photos. See the attribution files in `public/` for separately licensed images, and confirm permission before reusing user-supplied media or branding.
+The MAHE logo and campus photos have separate rights. See the attribution files in `public/` for separately licensed images, and confirm permission before reusing user-supplied media or branding. Earlier code versions published with an MIT License remain subject to that license.
