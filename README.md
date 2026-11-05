@@ -129,3 +129,9 @@ These are the deployment URLs supplied by the project team. A healthy instance r
 - `tests/` — unit and API integration tests
 
 See [CHANGELOG.md](./CHANGELOG.md) for release history.
+
+## Contributing and license
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development and pull request process and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards. The repository code is available under the [MIT License](./LICENSE).
+
+The MIT License does not grant rights to the MAHE logo or campus photos. See the attribution files in `public/` for separately licensed images, and confirm permission before reusing user-supplied media or branding.
